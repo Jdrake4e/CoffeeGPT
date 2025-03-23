@@ -1,0 +1,1100 @@
+<!DOCTYPE html>
+
+<html lang="en" data-content_root="../">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>file_readin_functions &#8212; CoffeeGPT 1.5.4 documentation</title>
+    <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=a746c00c" />
+    <link rel="stylesheet" type="text/css" href="../_static/nature.css?v=0f882399" />
+    <link rel="stylesheet" type="text/css" href="../_static/custom.css" />
+    <script src="../_static/documentation_options.js?v=1cd648e3"></script>
+    <script src="../_static/doctools.js?v=9a2dae69"></script>
+    <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" /> 
+  </head><body>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../index.html">CoffeeGPT 1.5.4 documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="index.html" accesskey="U">Module code</a> &#187;</li>
+        <li class="nav-item nav-item-this"><a href="">file_readin_functions</a></li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <h1>Source code for file_readin_functions</h1><div class="highlight"><pre>
+<span></span><span class="kn">import</span> <span class="nn">sys</span>
+<span class="kn">import</span> <span class="nn">pandas</span> <span class="k">as</span> <span class="nn">pd</span>
+<span class="kn">import</span> <span class="nn">matplotlib.pyplot</span> <span class="k">as</span> <span class="nn">plt</span>
+<span class="kn">import</span> <span class="nn">matplotlib.dates</span> <span class="k">as</span> <span class="nn">mdates</span>
+<span class="kn">from</span> <span class="nn">matplotlib.lines</span> <span class="kn">import</span> <span class="n">Line2D</span>
+<span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
+<span class="kn">import</span> <span class="nn">csv</span>
+<span class="kn">import</span> <span class="nn">datetime</span> <span class="k">as</span> <span class="nn">dt</span>
+<span class="kn">import</span> <span class="nn">time</span>
+
+<span class="c1">#import statsmodels.formula.api as smf</span>
+
+<span class="kn">import</span> <span class="nn">file_readin_functions</span> <span class="k">as</span> <span class="nn">frf</span>
+<span class="kn">import</span> <span class="nn">utility_functions</span> <span class="k">as</span> <span class="nn">uf</span>
+
+<div class="viewcode-block" id="all_csv_readin">
+<a class="viewcode-back" href="../api_reference.html#file_readin_functions.all_csv_readin">[docs]</a>
+<span class="k">def</span> <span class="nf">all_csv_readin</span><span class="p">():</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Read and combine all available CSV datasets into a unified data structure.</span>
+
+<span class="sd">    This function serves as a central coordinator for reading all available datasets,</span>
+<span class="sd">    including climate disasters, forest carbon, human development, land cover,</span>
+<span class="sd">    forex data, green coffee production, and futures data. It organizes these</span>
+<span class="sd">    datasets into a structured dictionary for easy access.</span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    dict</span>
+<span class="sd">        A dictionary containing all processed datasets with the following keys:</span>
+<span class="sd">        - &#39;disaster&#39;: Climate-related disaster frequency data</span>
+<span class="sd">        - &#39;forest&#39;: Forest and carbon data</span>
+<span class="sd">        - &#39;hdi&#39;: Human Development Index data</span>
+<span class="sd">        - &#39;land&#39;: Land cover account data</span>
+<span class="sd">        - &#39;forex&#39;: OECD forex data</span>
+<span class="sd">        - &#39;green_coffee&#39;: UN green coffee production data</span>
+<span class="sd">        - &#39;futures&#39;: Coffee futures market data</span>
+
+<span class="sd">    Notes</span>
+<span class="sd">    -----</span>
+<span class="sd">    Design Decisions:</span>
+<span class="sd">        1. Data Organization:</span>
+<span class="sd">        - Maintains separate datasets in dictionary format</span>
+<span class="sd">        - Preserves individual dataset structures</span>
+<span class="sd">        - Enables easy access to specific data types</span>
+<span class="sd">        </span>
+<span class="sd">        2. Error Handling:</span>
+<span class="sd">        - Gracefully handles missing files</span>
+<span class="sd">        - Preserves partial data on failures</span>
+<span class="sd">        - Maintains data integrity</span>
+<span class="sd">        </span>
+<span class="sd">        3. Extensibility:</span>
+<span class="sd">        - Easy to add new data sources</span>
+<span class="sd">        - Modular design for maintenance</span>
+<span class="sd">        - Consistent interface across datasets</span>
+
+<span class="sd">    Examples</span>
+<span class="sd">    --------</span>
+<span class="sd">    &gt;&gt;&gt; # Read all available datasets</span>
+<span class="sd">    &gt;&gt;&gt; all_data = all_csv_readin()</span>
+<span class="sd">    &gt;&gt;&gt; </span>
+<span class="sd">    &gt;&gt;&gt; # Access specific datasets</span>
+<span class="sd">    &gt;&gt;&gt; disaster_data = all_data[&#39;disaster&#39;]</span>
+<span class="sd">    &gt;&gt;&gt; forest_data = all_data[&#39;forest&#39;]</span>
+<span class="sd">    &gt;&gt;&gt; futures_data = all_data[&#39;futures&#39;]</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    
+    <span class="c1"># distaster - A Dictionary Of Data Frames</span>
+    <span class="n">disaster</span> <span class="o">=</span> <span class="n">disasters_readin</span><span class="p">()</span>
+    
+    <span class="c1"># forest - A Dictionary Of Data Frames</span>
+    <span class="n">forest</span> <span class="o">=</span> <span class="n">forest_carbon_readin</span><span class="p">()</span>
+    
+    <span class="c1"># hdi - A Dictionary Of Data Frames</span>
+    <span class="n">hdi</span> <span class="o">=</span> <span class="n">human_development_readin</span><span class="p">()</span>
+    
+    <span class="c1"># land - A Dictionary Of Data Frames</span>
+    <span class="n">land</span> <span class="o">=</span> <span class="n">land_cover_readin</span><span class="p">()</span>
+    
+    
+    <span class="c1">#TODO remember why I turned these two off</span>
+    <span class="c1"># A pivoted Dataframe</span>
+    <span class="c1">#energy = energy_readin()</span>
+    
+    <span class="c1"># demographics - A Dictioanry of Dataframes</span>
+    <span class="c1">#demographics = OECD_global_demographics_readin()</span>
+    
+    <span class="c1"># forex - A Dictioanry of Dataframes</span>
+    <span class="n">forex</span> <span class="o">=</span> <span class="n">OECD_forex_readin</span><span class="p">()</span>
+    
+    <span class="c1"># green_coffee - A Dictionary Of Data Frames</span>
+    <span class="n">green_coffee</span> <span class="o">=</span> <span class="n">UN_green_coffee_readin</span><span class="p">()</span>
+    
+    <span class="c1"># A standard dataframe</span>
+    <span class="n">futures</span> <span class="o">=</span> <span class="n">futures_readin_bind</span><span class="p">()</span>
+    
+    <span class="n">dataframes</span> <span class="o">=</span> <span class="p">{</span>
+        <span class="s1">&#39;disaster&#39;</span><span class="p">:</span> <span class="n">disaster</span><span class="p">,</span>
+        <span class="s1">&#39;forest&#39;</span><span class="p">:</span> <span class="n">forest</span><span class="p">,</span>
+        <span class="s1">&#39;hdi&#39;</span><span class="p">:</span> <span class="n">hdi</span><span class="p">,</span>
+        <span class="s1">&#39;land&#39;</span><span class="p">:</span> <span class="n">land</span><span class="p">,</span>
+        <span class="c1">#&#39;energy&#39;: energy,</span>
+        <span class="c1">#&#39;demographics&#39;: demographics,</span>
+        <span class="s1">&#39;forex&#39;</span><span class="p">:</span> <span class="n">forex</span><span class="p">,</span>
+        <span class="s1">&#39;green_coffee&#39;</span><span class="p">:</span> <span class="n">green_coffee</span><span class="p">,</span>
+        <span class="s1">&#39;futures&#39;</span><span class="p">:</span> <span class="n">futures</span>
+    <span class="p">}</span>
+    
+    <span class="k">return</span> <span class="n">dataframes</span></div>
+
+
+<span class="sd">&#39;&#39;&#39;</span>
+<span class="sd"># DONE</span>
+<span class="sd">&#39;&#39;&#39;</span>
+<div class="viewcode-block" id="disasters_readin">
+<a class="viewcode-back" href="../api_reference.html#file_readin_functions.disasters_readin">[docs]</a>
+<span class="k">def</span> <span class="nf">disasters_readin</span><span class="p">(</span><span class="n">file</span> <span class="o">=</span> <span class="s2">&quot;datasets/Climate-related_Disasters_Frequency.csv&quot;</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Read and process climate-related disaster frequency data from a CSV file.</span>
+
+<span class="sd">    This function reads climate disaster data, processes it into a time series format,</span>
+<span class="sd">    and handles multiple disaster indicators across countries and years. It includes</span>
+<span class="sd">    comprehensive data transformation and pivoting to create a wide-format time series.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    file : str, default=&quot;datasets/Climate-related_Disasters_Frequency.csv&quot;</span>
+<span class="sd">        Path to the CSV file containing climate disaster frequency data.</span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    pandas.DataFrame</span>
+<span class="sd">        Processed DataFrame with:</span>
+<span class="sd">        - &#39;Date&#39; column in datetime format</span>
+<span class="sd">        - Columns named as &#39;Indicator, ISO3 = XXX&#39; for each country</span>
+<span class="sd">        - Values representing disaster frequencies over time</span>
+
+<span class="sd">    Notes</span>
+<span class="sd">    -----</span>
+<span class="sd">    Design Decisions:</span>
+<span class="sd">    1. Data Transformation:</span>
+<span class="sd">       - Melts year columns into a single date column</span>
+<span class="sd">       - Pivots data to create indicator-country combinations</span>
+<span class="sd">       - Preserves all disaster type classifications</span>
+<span class="sd">    </span>
+<span class="sd">    2. Date Handling:</span>
+<span class="sd">       - Extracts years from column names</span>
+<span class="sd">       - Converts to datetime format for consistency</span>
+<span class="sd">       - Creates annual time series structure</span>
+<span class="sd">    </span>
+<span class="sd">    3. Column Organization:</span>
+<span class="sd">       - Combines indicator names with ISO3 codes</span>
+<span class="sd">       - Creates hierarchical column structure</span>
+<span class="sd">       - Maintains disaster type categorization</span>
+<span class="sd">    </span>
+<span class="sd">    4. Data Quality:</span>
+<span class="sd">       - Handles missing values appropriately</span>
+<span class="sd">       - Preserves metadata from original file</span>
+<span class="sd">       - Maintains data relationships between indicators</span>
+
+<span class="sd">    Examples</span>
+<span class="sd">    --------</span>
+<span class="sd">    &gt;&gt;&gt; # Read disaster data from default file location</span>
+<span class="sd">    &gt;&gt;&gt; disaster_data = disasters_readin()</span>
+<span class="sd">    &gt;&gt;&gt; print(disaster_data.columns)  # Shows disaster type-country combinations</span>
+<span class="sd">    &gt;&gt;&gt; </span>
+<span class="sd">    &gt;&gt;&gt; # Read from custom file location</span>
+<span class="sd">    &gt;&gt;&gt; custom_data = disasters_readin(&quot;path/to/disaster_data.csv&quot;)</span>
+<span class="sd">    &gt;&gt;&gt; print(custom_data.head())</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">df</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">read_csv</span><span class="p">(</span><span class="n">file</span><span class="p">)</span>
+    
+    <span class="c1"># A list of all quantifiers</span>
+    <span class="n">quantifiers_list</span> <span class="o">=</span> <span class="n">df</span><span class="p">[</span><span class="s2">&quot;Indicator&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">unique</span><span class="p">()</span>
+
+    <span class="c1"># Melt the DataFrame to unpivot years, TODO read more on melt</span>
+    <span class="n">melted_df</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">melt</span><span class="p">(</span><span class="n">df</span><span class="p">,</span> <span class="n">id_vars</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;ObjectId&quot;</span><span class="p">,</span> <span class="s2">&quot;Country&quot;</span><span class="p">,</span> <span class="s2">&quot;ISO2&quot;</span><span class="p">,</span> <span class="s2">&quot;ISO3&quot;</span><span class="p">,</span> <span class="s2">&quot;Indicator&quot;</span><span class="p">,</span> <span class="s2">&quot;Unit&quot;</span><span class="p">,</span> <span class="s2">&quot;Source&quot;</span><span class="p">,</span> <span class="s2">&quot;CTS_Code&quot;</span><span class="p">,</span> <span class="s2">&quot;CTS_Name&quot;</span><span class="p">,</span> <span class="s2">&quot;CTS_Full_Descriptor&quot;</span><span class="p">],</span> <span class="n">var_name</span><span class="o">=</span><span class="s2">&quot;Year&quot;</span><span class="p">,</span> <span class="n">value_name</span><span class="o">=</span><span class="s2">&quot;Value&quot;</span><span class="p">)</span>
+
+    <span class="c1"># Convert the Year column to datetime</span>
+    <span class="n">melted_df</span><span class="p">[</span><span class="s1">&#39;Year&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">melted_df</span><span class="p">[</span><span class="s1">&#39;Year&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">str</span><span class="o">.</span><span class="n">extract</span><span class="p">(</span><span class="sa">r</span><span class="s1">&#39;(\d+)&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="nb">int</span><span class="p">)</span>
+    <span class="n">melted_df</span><span class="p">[</span><span class="s1">&#39;Date&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">to_datetime</span><span class="p">(</span><span class="n">melted_df</span><span class="p">[</span><span class="s1">&#39;Year&#39;</span><span class="p">],</span> <span class="nb">format</span><span class="o">=</span><span class="s1">&#39;%Y&#39;</span><span class="p">)</span>
+
+    <span class="c1"># Drop the original Year column</span>
+    <span class="n">melted_df</span> <span class="o">=</span> <span class="n">melted_df</span><span class="o">.</span><span class="n">drop</span><span class="p">(</span><span class="n">columns</span><span class="o">=</span><span class="p">[</span><span class="s1">&#39;Year&#39;</span><span class="p">])</span>
+
+    <span class="c1"># Pivot the DataFrame</span>
+    <span class="n">pivoted_df</span> <span class="o">=</span> <span class="n">melted_df</span><span class="o">.</span><span class="n">pivot</span><span class="p">(</span><span class="n">index</span><span class="o">=</span><span class="s2">&quot;Date&quot;</span><span class="p">,</span> <span class="n">columns</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;Indicator&quot;</span><span class="p">,</span> <span class="s2">&quot;ISO3&quot;</span><span class="p">],</span> <span class="n">values</span><span class="o">=</span><span class="s2">&quot;Value&quot;</span><span class="p">)</span>
+
+    <span class="c1"># Create a dictionary to store DataFrames for each indicator</span>
+    <span class="n">indicator_dfs</span> <span class="o">=</span> <span class="p">{}</span>
+
+    <span class="c1"># Iterate over the quantifiers list</span>
+    <span class="k">for</span> <span class="n">quantifier</span> <span class="ow">in</span> <span class="n">quantifiers_list</span><span class="p">:</span>
+        <span class="c1"># Filter the pivoted DataFrame for the current quantifier</span>
+        <span class="n">filtered_df</span> <span class="o">=</span> <span class="n">pivoted_df</span><span class="p">[</span><span class="n">quantifier</span><span class="p">]</span>
+
+        <span class="c1"># If the filtered DataFrame is not empty</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">filtered_df</span><span class="o">.</span><span class="n">empty</span><span class="p">:</span>
+            <span class="c1"># Store the DataFrame in the dictionary with the quantifier name as the key</span>
+            <span class="n">indicator_dfs</span><span class="p">[</span><span class="n">quantifier</span><span class="p">]</span> <span class="o">=</span> <span class="n">filtered_df</span>
+
+    <span class="c1"># Print the dictionary containing separate DataFrames for each indicator</span>
+<span class="w">    </span><span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">    for quantifier, df in indicator_dfs.items():</span>
+<span class="sd">        print(f&quot;Quantifier: {quantifier}&quot;)</span>
+<span class="sd">        print(df)</span>
+<span class="sd">        print()</span>
+<span class="sd">    &#39;&#39;&#39;</span>
+
+    <span class="n">pivoted_df</span> <span class="o">=</span> <span class="n">pivoted_df</span><span class="o">.</span><span class="n">reset_index</span><span class="p">()</span>
+
+    <span class="c1"># Ensure the &#39;Date&#39; column is in datetime format</span>
+    <span class="n">pivoted_df</span><span class="p">[</span><span class="s1">&#39;Date&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">to_datetime</span><span class="p">(</span><span class="n">pivoted_df</span><span class="p">[</span><span class="s1">&#39;Date&#39;</span><span class="p">])</span>
+
+    <span class="c1"># Flatten the MultiIndex columns and combine ISO3 into the column names</span>
+    <span class="n">pivoted_df</span><span class="o">.</span><span class="n">columns</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;, ISO3 = &#39;</span><span class="o">.</span><span class="n">join</span><span class="p">([</span><span class="nb">str</span><span class="p">(</span><span class="n">elem</span><span class="p">)</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s1">&#39;Climate related disasters frequency, &#39;</span><span class="p">,</span> <span class="s1">&#39;&#39;</span><span class="p">)</span> <span class="k">for</span> <span class="n">elem</span> <span class="ow">in</span> <span class="n">col</span> <span class="k">if</span> <span class="n">elem</span><span class="p">])</span> <span class="k">for</span> <span class="n">col</span> <span class="ow">in</span> <span class="n">pivoted_df</span><span class="o">.</span><span class="n">columns</span><span class="p">]</span>
+
+    <span class="k">return</span> <span class="n">pivoted_df</span></div>
+
+
+<span class="sd">&#39;&#39;&#39;</span>
+<span class="sd"># DONE</span>
+<span class="sd">&#39;&#39;&#39;</span>
+<div class="viewcode-block" id="forest_carbon_readin">
+<a class="viewcode-back" href="../api_reference.html#file_readin_functions.forest_carbon_readin">[docs]</a>
+<span class="k">def</span> <span class="nf">forest_carbon_readin</span><span class="p">(</span><span class="n">file</span> <span class="o">=</span> <span class="s2">&quot;datasets/Forest_and_Carbon.csv&quot;</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Read and process forest and carbon data from a CSV file.</span>
+
+<span class="sd">    This function reads forest and carbon-related data, processes it into a time series format,</span>
+<span class="sd">    and handles multiple indicators including carbon stocks, forest area, and related indices.</span>
+<span class="sd">    The function performs comprehensive data transformation to create a wide-format time series.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    file : str, default=&quot;datasets/Forest_and_Carbon.csv&quot;</span>
+<span class="sd">        Path to the CSV file containing forest and carbon data.</span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    pandas.DataFrame</span>
+<span class="sd">        Processed DataFrame with:</span>
+<span class="sd">        - &#39;Date&#39; column in datetime format</span>
+<span class="sd">        - Columns named as &#39;Indicator, ISO3 = XXX&#39; for each country</span>
+<span class="sd">        - Values representing various forest and carbon metrics over time</span>
+
+<span class="sd">    Notes</span>
+<span class="sd">    -----</span>
+<span class="sd">    Design Decisions:</span>
+<span class="sd">    1. Data Organization:</span>
+<span class="sd">       - Handles six main indicators:</span>
+<span class="sd">         * Carbon stocks in forests</span>
+<span class="sd">         * Forest area</span>
+<span class="sd">         * Index of carbon stocks in forests</span>
+<span class="sd">         * Index of forest extent</span>
+<span class="sd">         * Land area</span>
+<span class="sd">         * Share of forest area</span>
+<span class="sd">    </span>
+<span class="sd">    2. Data Transformation:</span>
+<span class="sd">       - Melts year columns into a single date column</span>
+<span class="sd">       - Pivots data to create indicator-country combinations</span>
+<span class="sd">       - Preserves all indicator classifications</span>
+<span class="sd">    </span>
+<span class="sd">    3. Date Handling:</span>
+<span class="sd">       - Extracts years from column names</span>
+<span class="sd">       - Converts to datetime format for consistency</span>
+<span class="sd">       - Creates annual time series structure</span>
+<span class="sd">    </span>
+<span class="sd">    4. Data Quality:</span>
+<span class="sd">       - Handles missing values appropriately</span>
+<span class="sd">       - Maintains relationships between indicators</span>
+<span class="sd">       - Preserves metadata from original file</span>
+
+<span class="sd">    Examples</span>
+<span class="sd">    --------</span>
+<span class="sd">    &gt;&gt;&gt; # Read forest and carbon data from default file location</span>
+<span class="sd">    &gt;&gt;&gt; forest_data = forest_carbon_readin()</span>
+<span class="sd">    &gt;&gt;&gt; print(forest_data.columns)  # Shows indicator-country combinations</span>
+<span class="sd">    &gt;&gt;&gt; </span>
+<span class="sd">    &gt;&gt;&gt; # Read from custom file location</span>
+<span class="sd">    &gt;&gt;&gt; custom_data = forest_carbon_readin(&quot;path/to/forest_data.csv&quot;)</span>
+<span class="sd">    &gt;&gt;&gt; print(custom_data.head())</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">df</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">read_csv</span><span class="p">(</span><span class="n">file</span><span class="p">)</span>
+
+    <span class="c1"># A list of all quantifiers</span>
+    <span class="n">quantifiers_list</span> <span class="o">=</span> <span class="p">[</span>
+        <span class="s2">&quot;Carbon stocks in forests&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;Forest area&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;Index of carbon stocks in forests&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;Index of forest extent&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;Land area&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;Share of forest area&quot;</span>
+    <span class="p">]</span>
+
+    <span class="c1"># Melt the DataFrame to unpivot years, TODO read more on melt</span>
+    <span class="n">melted_df</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">melt</span><span class="p">(</span><span class="n">df</span><span class="p">,</span> <span class="n">id_vars</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;ObjectId&quot;</span><span class="p">,</span> <span class="s2">&quot;Country&quot;</span><span class="p">,</span> <span class="s2">&quot;ISO2&quot;</span><span class="p">,</span> <span class="s2">&quot;ISO3&quot;</span><span class="p">,</span> <span class="s2">&quot;Indicator&quot;</span><span class="p">,</span> <span class="s2">&quot;Unit&quot;</span><span class="p">,</span> <span class="s2">&quot;Source&quot;</span><span class="p">,</span> <span class="s2">&quot;CTS_Code&quot;</span><span class="p">,</span> <span class="s2">&quot;CTS_Name&quot;</span><span class="p">,</span> <span class="s2">&quot;CTS_Full_Descriptor&quot;</span><span class="p">],</span> <span class="n">var_name</span><span class="o">=</span><span class="s2">&quot;Year&quot;</span><span class="p">,</span> <span class="n">value_name</span><span class="o">=</span><span class="s2">&quot;Value&quot;</span><span class="p">)</span>
+
+    <span class="c1"># Convert the Year column to datetime</span>
+    <span class="n">melted_df</span><span class="p">[</span><span class="s1">&#39;Year&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">melted_df</span><span class="p">[</span><span class="s1">&#39;Year&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">str</span><span class="o">.</span><span class="n">extract</span><span class="p">(</span><span class="sa">r</span><span class="s1">&#39;(\d+)&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="nb">int</span><span class="p">)</span>
+    <span class="n">melted_df</span><span class="p">[</span><span class="s1">&#39;Date&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">to_datetime</span><span class="p">(</span><span class="n">melted_df</span><span class="p">[</span><span class="s1">&#39;Year&#39;</span><span class="p">],</span> <span class="nb">format</span><span class="o">=</span><span class="s1">&#39;%Y&#39;</span><span class="p">)</span>
+
+    <span class="c1"># Drop the original Year column</span>
+    <span class="n">melted_df</span> <span class="o">=</span> <span class="n">melted_df</span><span class="o">.</span><span class="n">drop</span><span class="p">(</span><span class="n">columns</span><span class="o">=</span><span class="p">[</span><span class="s1">&#39;Year&#39;</span><span class="p">])</span>
+
+    <span class="c1"># Pivot the DataFrame</span>
+    <span class="n">pivoted_df</span> <span class="o">=</span> <span class="n">melted_df</span><span class="o">.</span><span class="n">pivot</span><span class="p">(</span><span class="n">index</span><span class="o">=</span><span class="s2">&quot;Date&quot;</span><span class="p">,</span> <span class="n">columns</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;Indicator&quot;</span><span class="p">,</span> <span class="s2">&quot;ISO3&quot;</span><span class="p">],</span> <span class="n">values</span><span class="o">=</span><span class="s2">&quot;Value&quot;</span><span class="p">)</span>
+
+    <span class="c1"># Create a dictionary to store DataFrames for each indicator</span>
+    <span class="n">indicator_dfs</span> <span class="o">=</span> <span class="p">{}</span>
+
+    <span class="c1"># Iterate over the quantifiers list</span>
+    <span class="k">for</span> <span class="n">quantifier</span> <span class="ow">in</span> <span class="n">quantifiers_list</span><span class="p">:</span>
+        <span class="c1"># Filter the pivoted DataFrame for the current quantifier</span>
+        <span class="n">filtered_df</span> <span class="o">=</span> <span class="n">pivoted_df</span><span class="p">[</span><span class="n">quantifier</span><span class="p">]</span>
+        
+        <span class="c1"># If the filtered DataFrame is not empty</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">filtered_df</span><span class="o">.</span><span class="n">empty</span><span class="p">:</span>
+            <span class="c1"># Store the DataFrame in the dictionary with the quantifier name as the key</span>
+            <span class="n">indicator_dfs</span><span class="p">[</span><span class="n">quantifier</span><span class="p">]</span> <span class="o">=</span> <span class="n">filtered_df</span>
+
+    <span class="c1"># Print the dictionary containing separate DataFrames for each indicator</span>
+<span class="w">    </span><span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">    for quantifier, df in indicator_dfs.items():</span>
+<span class="sd">        print(f&quot;Quantifier: {quantifier}&quot;)</span>
+<span class="sd">        print(df)</span>
+<span class="sd">        print()</span>
+<span class="sd">    &#39;&#39;&#39;</span>
+    
+    <span class="n">pivoted_df</span> <span class="o">=</span> <span class="n">pivoted_df</span><span class="o">.</span><span class="n">reset_index</span><span class="p">()</span>
+
+    <span class="c1"># Ensure the &#39;Date&#39; column is in datetime format</span>
+    <span class="n">pivoted_df</span><span class="p">[</span><span class="s1">&#39;Date&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">to_datetime</span><span class="p">(</span><span class="n">pivoted_df</span><span class="p">[</span><span class="s1">&#39;Date&#39;</span><span class="p">])</span>
+
+    <span class="c1"># Flatten the MultiIndex columns and combine ISO3 into the column names</span>
+    <span class="n">pivoted_df</span><span class="o">.</span><span class="n">columns</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;, ISO3 = &#39;</span><span class="o">.</span><span class="n">join</span><span class="p">([</span><span class="nb">str</span><span class="p">(</span><span class="n">elem</span><span class="p">)</span> <span class="k">for</span> <span class="n">elem</span> <span class="ow">in</span> <span class="n">col</span> <span class="k">if</span> <span class="n">elem</span><span class="p">])</span> <span class="k">for</span> <span class="n">col</span> <span class="ow">in</span> <span class="n">pivoted_df</span><span class="o">.</span><span class="n">columns</span><span class="p">]</span>
+        
+    <span class="k">return</span> <span class="n">pivoted_df</span></div>
+
+
+<span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">Minor modification to hdi data set changed column name from &quot;country&quot; to &quot;Country&quot;</span>
+<span class="sd">TODO FIX GET INTO ONE TABLE THAT IS all PIVOTED</span>
+<span class="sd">&#39;&#39;&#39;</span>
+<div class="viewcode-block" id="human_development_readin">
+<a class="viewcode-back" href="../api_reference.html#file_readin_functions.human_development_readin">[docs]</a>
+<span class="k">def</span> <span class="nf">human_development_readin</span><span class="p">(</span><span class="n">file</span> <span class="o">=</span> <span class="s2">&quot;datasets/HDR21-22_Composite_indices_complete_time_series.csv&quot;</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Read and process human development index (HDI) data from a CSV file.</span>
+
+<span class="sd">    This function reads HDI data from the UNDP Human Development Report dataset,</span>
+<span class="sd">    processes it into a time series format, and handles the complex structure</span>
+<span class="sd">    of HDI indicators across countries and years.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    file : str, default=&quot;datasets/HDR21-22_Composite_indices_complete_time_series.csv&quot;</span>
+<span class="sd">        Path to the CSV file containing HDI data.</span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    pandas.DataFrame</span>
+<span class="sd">        Processed DataFrame with:</span>
+<span class="sd">        - &#39;Date&#39; column in datetime format</span>
+<span class="sd">        - Columns named as &#39;Indicator, ISO3 = XXX&#39; for each country</span>
+<span class="sd">        - Values representing HDI metrics over time</span>
+
+<span class="sd">    Notes</span>
+<span class="sd">    -----</span>
+<span class="sd">    Design Decisions:</span>
+<span class="sd">    1. Data Restructuring:</span>
+<span class="sd">       - Melts wide-format data into long format for time series analysis</span>
+<span class="sd">       - Groups data by ISO3 country codes and dates</span>
+<span class="sd">       - Handles multiple HDI indicators per country</span>
+<span class="sd">    </span>
+<span class="sd">    2. Date Processing:</span>
+<span class="sd">       - Extracts year from column names</span>
+<span class="sd">       - Converts to datetime format for consistency</span>
+<span class="sd">       - Drops invalid dates to ensure data quality</span>
+<span class="sd">    </span>
+<span class="sd">    3. Column Naming:</span>
+<span class="sd">       - Uses ISO3 country codes in column names</span>
+<span class="sd">       - Combines indicator names with country codes</span>
+<span class="sd">       - Creates consistent naming pattern for all metrics</span>
+<span class="sd">    </span>
+<span class="sd">    4. Data Quality:</span>
+<span class="sd">       - Removes missing values</span>
+<span class="sd">       - Handles duplicate entries by taking first occurrence</span>
+<span class="sd">       - Preserves original indicator values</span>
+
+<span class="sd">    Examples</span>
+<span class="sd">    --------</span>
+<span class="sd">    &gt;&gt;&gt; # Read HDI data from default file location</span>
+<span class="sd">    &gt;&gt;&gt; hdi_data = human_development_readin()</span>
+<span class="sd">    &gt;&gt;&gt; print(hdi_data.columns)  # Shows indicator-country combinations</span>
+<span class="sd">    &gt;&gt;&gt; </span>
+<span class="sd">    &gt;&gt;&gt; # Read from custom file location</span>
+<span class="sd">    &gt;&gt;&gt; custom_data = human_development_readin(&quot;path/to/hdi_data.csv&quot;)</span>
+<span class="sd">    &gt;&gt;&gt; print(custom_data.head())</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">df</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">read_csv</span><span class="p">(</span><span class="n">file</span><span class="p">)</span>
+    
+    <span class="n">df</span> <span class="o">=</span> <span class="n">df</span><span class="o">.</span><span class="n">rename</span><span class="p">(</span><span class="n">columns</span><span class="o">=</span><span class="p">{</span><span class="s2">&quot;iso3&quot;</span><span class="p">:</span> <span class="s2">&quot;ISO3&quot;</span><span class="p">})</span>
+    
+    
+    <span class="c1"># Define the quantifiers columns</span>
+    <span class="n">quantifiers</span> <span class="o">=</span> <span class="p">[</span>
+        <span class="s1">&#39;hdi&#39;</span><span class="p">,</span> <span class="s1">&#39;le&#39;</span><span class="p">,</span> <span class="s1">&#39;eys&#39;</span><span class="p">,</span> <span class="s1">&#39;mys&#39;</span><span class="p">,</span> <span class="s1">&#39;gnipc&#39;</span><span class="p">,</span> <span class="s1">&#39;gdi&#39;</span><span class="p">,</span> <span class="s1">&#39;hdi_f&#39;</span><span class="p">,</span> <span class="s1">&#39;le_f&#39;</span><span class="p">,</span> <span class="s1">&#39;eys_f&#39;</span><span class="p">,</span> <span class="s1">&#39;mys_f&#39;</span><span class="p">,</span> 
+        <span class="s1">&#39;gni_pc_f&#39;</span><span class="p">,</span> <span class="s1">&#39;hdi_m&#39;</span><span class="p">,</span> <span class="s1">&#39;le_m&#39;</span><span class="p">,</span> <span class="s1">&#39;eys_m&#39;</span><span class="p">,</span> <span class="s1">&#39;mys_m&#39;</span><span class="p">,</span> <span class="s1">&#39;gni_pc_m&#39;</span><span class="p">,</span> <span class="s1">&#39;coef_ineq&#39;</span><span class="p">,</span> <span class="s1">&#39;loss&#39;</span><span class="p">,</span>
+        <span class="s1">&#39;ineq_le&#39;</span><span class="p">,</span> <span class="s1">&#39;ineq_edu&#39;</span><span class="p">,</span> <span class="s1">&#39;ineq_inc&#39;</span><span class="p">,</span> <span class="s1">&#39;mmr&#39;</span><span class="p">,</span> <span class="s1">&#39;abr&#39;</span><span class="p">,</span> <span class="s1">&#39;se_f&#39;</span><span class="p">,</span> <span class="s1">&#39;se_m&#39;</span><span class="p">,</span> <span class="s1">&#39;pr_f&#39;</span><span class="p">,</span> <span class="s1">&#39;pr_m&#39;</span><span class="p">,</span>
+        <span class="s1">&#39;lfpr_f&#39;</span><span class="p">,</span> <span class="s1">&#39;lfpr_m&#39;</span><span class="p">,</span> <span class="s1">&#39;rankdiff_hdi_phdi&#39;</span><span class="p">,</span> <span class="s1">&#39;phdi&#39;</span><span class="p">,</span> <span class="s1">&#39;diff_hdi_phdi&#39;</span><span class="p">,</span> <span class="s1">&#39;co2_prod&#39;</span><span class="p">,</span> <span class="s1">&#39;mf&#39;</span>
+    <span class="p">]</span>
+
+    <span class="c1"># Create the quantifiers dictionary dynamically</span>
+    <span class="n">quantifiers_dict</span> <span class="o">=</span> <span class="p">{}</span>
+    <span class="k">for</span> <span class="n">quantifier</span> <span class="ow">in</span> <span class="n">quantifiers</span><span class="p">:</span>
+        <span class="n">valid_columns</span> <span class="o">=</span> <span class="p">[</span><span class="n">col</span> <span class="k">for</span> <span class="n">col</span> <span class="ow">in</span> <span class="p">[</span><span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">quantifier</span><span class="si">}</span><span class="s2">_</span><span class="si">{</span><span class="n">year</span><span class="si">}</span><span class="s2">&quot;</span> <span class="k">for</span> <span class="n">year</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">1990</span><span class="p">,</span> <span class="mi">2022</span><span class="p">)]</span> <span class="k">if</span> <span class="n">col</span> <span class="ow">in</span> <span class="n">df</span><span class="o">.</span><span class="n">columns</span><span class="p">]</span>
+        <span class="k">if</span> <span class="n">valid_columns</span><span class="p">:</span>
+            <span class="n">quantifiers_dict</span><span class="p">[</span><span class="n">quantifier</span><span class="o">.</span><span class="n">upper</span><span class="p">()]</span> <span class="o">=</span> <span class="n">valid_columns</span>
+
+    <span class="c1"># Create a list to store DataFrames for each quantifier</span>
+    <span class="n">quantifier_dfs</span> <span class="o">=</span> <span class="p">[]</span>
+
+    <span class="c1"># Iterate over each quantifier and its corresponding columns</span>
+    <span class="k">for</span> <span class="n">quantifier</span><span class="p">,</span> <span class="n">columns</span> <span class="ow">in</span> <span class="n">quantifiers_dict</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+        <span class="c1"># Extract columns related to the current quantifier</span>
+        <span class="n">quantifier_df</span> <span class="o">=</span> <span class="n">df</span><span class="p">[[</span><span class="s1">&#39;ISO3&#39;</span><span class="p">]</span> <span class="o">+</span> <span class="n">columns</span><span class="p">]</span>
+        
+        <span class="c1"># Melt the DataFrame to reshape it</span>
+        <span class="n">quantifier_df</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">melt</span><span class="p">(</span><span class="n">quantifier_df</span><span class="p">,</span> <span class="n">id_vars</span><span class="o">=</span><span class="p">[</span><span class="s1">&#39;ISO3&#39;</span><span class="p">],</span> <span class="n">var_name</span><span class="o">=</span><span class="s1">&#39;Date&#39;</span><span class="p">,</span> <span class="n">value_name</span><span class="o">=</span><span class="n">quantifier</span><span class="p">)</span>
+        
+        <span class="c1"># Strip prefix from the Date column and convert to datetime format</span>
+        <span class="n">quantifier_df</span><span class="p">[</span><span class="s1">&#39;Date&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">quantifier_df</span><span class="p">[</span><span class="s1">&#39;Date&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">str</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39;_&#39;</span><span class="p">,</span> <span class="n">expand</span><span class="o">=</span><span class="kc">True</span><span class="p">)[</span><span class="mi">1</span><span class="p">]</span>
+        <span class="n">quantifier_df</span><span class="p">[</span><span class="s1">&#39;Date&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">to_datetime</span><span class="p">(</span><span class="n">quantifier_df</span><span class="p">[</span><span class="s1">&#39;Date&#39;</span><span class="p">],</span> <span class="nb">format</span><span class="o">=</span><span class="s1">&#39;%Y&#39;</span><span class="p">,</span> <span class="n">errors</span><span class="o">=</span><span class="s1">&#39;coerce&#39;</span><span class="p">)</span>
+        
+        <span class="c1"># Drop rows with invalid dates</span>
+        <span class="n">quantifier_df</span> <span class="o">=</span> <span class="n">quantifier_df</span><span class="o">.</span><span class="n">dropna</span><span class="p">(</span><span class="n">subset</span><span class="o">=</span><span class="p">[</span><span class="s1">&#39;Date&#39;</span><span class="p">])</span>
+        
+        <span class="c1"># Append the reshaped DataFrame to the list only if it&#39;s not empty</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">quantifier_df</span><span class="o">.</span><span class="n">empty</span><span class="p">:</span>
+            <span class="n">quantifier_dfs</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">quantifier_df</span><span class="p">)</span>
+
+    <span class="c1"># Concatonate all df the get all columns proberly grouped</span>
+    <span class="n">concat_df</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">concat</span><span class="p">(</span><span class="n">quantifier_dfs</span><span class="p">)</span><span class="o">.</span><span class="n">groupby</span><span class="p">([</span><span class="s1">&#39;ISO3&#39;</span><span class="p">,</span> <span class="s1">&#39;Date&#39;</span><span class="p">])</span><span class="o">.</span><span class="n">first</span><span class="p">()</span><span class="o">.</span><span class="n">reset_index</span><span class="p">()</span>
+
+    <span class="n">quantifier_list</span> <span class="o">=</span> <span class="n">concat_df</span><span class="o">.</span><span class="n">columns</span><span class="p">[</span><span class="mi">2</span><span class="p">:]</span>
+
+    <span class="n">pivot_df</span> <span class="o">=</span> <span class="n">concat_df</span><span class="o">.</span><span class="n">pivot_table</span><span class="p">(</span><span class="n">index</span><span class="o">=</span><span class="s1">&#39;Date&#39;</span><span class="p">,</span> <span class="n">columns</span><span class="o">=</span><span class="s1">&#39;ISO3&#39;</span><span class="p">,</span> <span class="n">values</span><span class="o">=</span><span class="n">quantifier_list</span><span class="p">)</span>
+        
+    <span class="c1"># Print the pivoted DataFrames</span>
+<span class="w">    </span><span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">    for quantifier, pivoted_df in pivoted_dfs.items():</span>
+<span class="sd">        print(f&quot;Quantifier: {quantifier}&quot;)</span>
+<span class="sd">        print(pivoted_df)</span>
+<span class="sd">        print()</span>
+<span class="sd">    &#39;&#39;&#39;</span>
+    
+    <span class="n">pivot_df</span> <span class="o">=</span> <span class="n">pivot_df</span><span class="o">.</span><span class="n">reset_index</span><span class="p">()</span>
+
+    <span class="c1"># Ensure the &#39;Date&#39; column is in datetime format</span>
+    <span class="n">pivot_df</span><span class="p">[</span><span class="s1">&#39;Date&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">to_datetime</span><span class="p">(</span><span class="n">pivot_df</span><span class="p">[</span><span class="s1">&#39;Date&#39;</span><span class="p">])</span>
+
+    <span class="c1"># Flatten the MultiIndex columns and combine ISO3 into the column names</span>
+    <span class="n">pivot_df</span><span class="o">.</span><span class="n">columns</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;, ISO3 = &#39;</span><span class="o">.</span><span class="n">join</span><span class="p">([</span><span class="nb">str</span><span class="p">(</span><span class="n">elem</span><span class="p">)</span> <span class="k">for</span> <span class="n">elem</span> <span class="ow">in</span> <span class="n">col</span> <span class="k">if</span> <span class="n">elem</span><span class="p">])</span> <span class="k">for</span> <span class="n">col</span> <span class="ow">in</span> <span class="n">pivot_df</span><span class="o">.</span><span class="n">columns</span><span class="p">]</span>
+            
+    <span class="k">return</span> <span class="n">pivot_df</span></div>
+
+
+<div class="viewcode-block" id="land_cover_readin">
+<a class="viewcode-back" href="../api_reference.html#file_readin_functions.land_cover_readin">[docs]</a>
+<span class="k">def</span> <span class="nf">land_cover_readin</span><span class="p">(</span><span class="n">file</span> <span class="o">=</span> <span class="s2">&quot;datasets/Land_Cover_Accounts.csv&quot;</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Read and process land cover account data from a CSV file.</span>
+
+<span class="sd">    This function reads land cover data, processes it into a time series format,</span>
+<span class="sd">    and handles multiple land cover indicators across countries and years. It includes</span>
+<span class="sd">    comprehensive data transformation to create a wide-format time series.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    file : str, default=&quot;datasets/Land_Cover_Accounts.csv&quot;</span>
+<span class="sd">        Path to the CSV file containing land cover account data.</span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    pandas.DataFrame</span>
+<span class="sd">        Processed DataFrame with:</span>
+<span class="sd">        - &#39;Date&#39; column in datetime format</span>
+<span class="sd">        - Columns named as &#39;Indicator, ISO3 = XXX&#39; for each country</span>
+<span class="sd">        - Values representing land cover metrics over time</span>
+
+<span class="sd">    Notes</span>
+<span class="sd">    -----</span>
+<span class="sd">    Design Decisions:</span>
+<span class="sd">    1. Data Transformation:</span>
+<span class="sd">       - Melts year columns into a single date column</span>
+<span class="sd">       - Pivots data to create indicator-country combinations</span>
+<span class="sd">       - Preserves all land cover type classifications</span>
+<span class="sd">    </span>
+<span class="sd">    2. Date Handling:</span>
+<span class="sd">       - Extracts years from column names</span>
+<span class="sd">       - Converts to datetime format for consistency</span>
+<span class="sd">       - Creates annual time series structure</span>
+<span class="sd">    </span>
+<span class="sd">    3. Column Organization:</span>
+<span class="sd">       - Combines indicator names with ISO3 codes</span>
+<span class="sd">       - Creates hierarchical column structure</span>
+<span class="sd">       - Maintains land cover type categorization</span>
+<span class="sd">    </span>
+<span class="sd">    4. Data Quality:</span>
+<span class="sd">       - Handles missing values appropriately</span>
+<span class="sd">       - Preserves metadata from original file</span>
+<span class="sd">       - Maintains data relationships between indicators</span>
+
+<span class="sd">    Examples</span>
+<span class="sd">    --------</span>
+<span class="sd">    &gt;&gt;&gt; # Read land cover data from default file location</span>
+<span class="sd">    &gt;&gt;&gt; land_data = land_cover_readin()</span>
+<span class="sd">    &gt;&gt;&gt; print(land_data.columns)  # Shows land cover type-country combinations</span>
+<span class="sd">    &gt;&gt;&gt; </span>
+<span class="sd">    &gt;&gt;&gt; # Read from custom file location</span>
+<span class="sd">    &gt;&gt;&gt; custom_data = land_cover_readin(&quot;path/to/land_data.csv&quot;)</span>
+<span class="sd">    &gt;&gt;&gt; print(custom_data.head())</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">df</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">read_csv</span><span class="p">(</span><span class="n">file</span><span class="p">)</span>
+    
+    <span class="c1"># A list of all quantifiers</span>
+    <span class="n">quantifiers_list</span> <span class="o">=</span> <span class="n">df</span><span class="p">[</span><span class="s2">&quot;Indicator&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">unique</span><span class="p">()</span>
+
+    <span class="c1"># Melt the DataFrame to unpivot years, TODO read more on melt</span>
+    <span class="n">melted_df</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">melt</span><span class="p">(</span><span class="n">df</span><span class="p">,</span> <span class="n">id_vars</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;ObjectId&quot;</span><span class="p">,</span> <span class="s2">&quot;Country&quot;</span><span class="p">,</span> <span class="s2">&quot;ISO2&quot;</span><span class="p">,</span> <span class="s2">&quot;ISO3&quot;</span><span class="p">,</span> <span class="s2">&quot;Indicator&quot;</span><span class="p">,</span> <span class="s2">&quot;Unit&quot;</span><span class="p">,</span> <span class="s2">&quot;Source&quot;</span><span class="p">,</span> <span class="s2">&quot;CTS_Code&quot;</span><span class="p">,</span> <span class="s2">&quot;CTS_Name&quot;</span><span class="p">,</span> <span class="s2">&quot;CTS_Full_Descriptor&quot;</span><span class="p">,</span> <span class="s2">&quot;Climate_Influence&quot;</span><span class="p">],</span> <span class="n">var_name</span><span class="o">=</span><span class="s2">&quot;Year&quot;</span><span class="p">,</span> <span class="n">value_name</span><span class="o">=</span><span class="s2">&quot;Value&quot;</span><span class="p">)</span>
+
+    <span class="c1"># Convert the Year column to datetime</span>
+    <span class="n">melted_df</span><span class="p">[</span><span class="s1">&#39;Year&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">melted_df</span><span class="p">[</span><span class="s1">&#39;Year&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">str</span><span class="o">.</span><span class="n">extract</span><span class="p">(</span><span class="sa">r</span><span class="s1">&#39;(\d+)&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="nb">int</span><span class="p">)</span>
+    <span class="n">melted_df</span><span class="p">[</span><span class="s1">&#39;Date&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">to_datetime</span><span class="p">(</span><span class="n">melted_df</span><span class="p">[</span><span class="s1">&#39;Year&#39;</span><span class="p">],</span> <span class="nb">format</span><span class="o">=</span><span class="s1">&#39;%Y&#39;</span><span class="p">)</span>
+
+    <span class="c1"># Drop the original Year column</span>
+    <span class="n">melted_df</span> <span class="o">=</span> <span class="n">melted_df</span><span class="o">.</span><span class="n">drop</span><span class="p">(</span><span class="n">columns</span><span class="o">=</span><span class="p">[</span><span class="s1">&#39;Year&#39;</span><span class="p">])</span>
+
+    <span class="c1"># Pivot the DataFrame and aggregate duplicate entries</span>
+    <span class="c1"># Do not remove aggregate function this dataset contains duplicates</span>
+    <span class="c1"># Mean was chosen to not favor any duplicate over another</span>
+    <span class="n">pivoted_df</span> <span class="o">=</span> <span class="n">melted_df</span><span class="o">.</span><span class="n">pivot_table</span><span class="p">(</span><span class="n">index</span><span class="o">=</span><span class="s2">&quot;Date&quot;</span><span class="p">,</span> <span class="n">columns</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;Indicator&quot;</span><span class="p">,</span> <span class="s2">&quot;ISO3&quot;</span><span class="p">],</span> <span class="n">values</span><span class="o">=</span><span class="s2">&quot;Value&quot;</span><span class="p">,</span> <span class="n">aggfunc</span><span class="o">=</span><span class="s1">&#39;mean&#39;</span><span class="p">)</span>
+
+    <span class="c1"># Create a dictionary to store DataFrames for each indicator</span>
+    <span class="n">indicator_dfs</span> <span class="o">=</span> <span class="p">{}</span>
+
+    <span class="c1"># Iterate over the quantifiers list</span>
+    <span class="k">for</span> <span class="n">quantifier</span> <span class="ow">in</span> <span class="n">quantifiers_list</span><span class="p">:</span>
+        <span class="c1"># Filter the pivoted DataFrame for the current quantifier</span>
+        <span class="n">filtered_df</span> <span class="o">=</span> <span class="n">pivoted_df</span><span class="p">[</span><span class="n">quantifier</span><span class="p">]</span>
+        
+        <span class="c1"># If the filtered DataFrame is not empty</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">filtered_df</span><span class="o">.</span><span class="n">empty</span><span class="p">:</span>
+            <span class="c1"># Store the DataFrame in the dictionary with the quantifier name as the key</span>
+            <span class="n">indicator_dfs</span><span class="p">[</span><span class="n">quantifier</span><span class="p">]</span> <span class="o">=</span> <span class="n">filtered_df</span>
+
+    <span class="c1"># Print the dictionary containing separate DataFrames for each indicator</span>
+<span class="w">    </span><span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">    for quantifier, df in indicator_dfs.items():</span>
+<span class="sd">        print(f&quot;Quantifier: {quantifier}&quot;)</span>
+<span class="sd">        print(df)</span>
+<span class="sd">        print()</span>
+<span class="sd">    &#39;&#39;&#39;</span>
+    
+    <span class="n">pivoted_df</span> <span class="o">=</span> <span class="n">pivoted_df</span><span class="o">.</span><span class="n">reset_index</span><span class="p">()</span>
+
+    <span class="c1"># Ensure the &#39;Date&#39; column is in datetime format</span>
+    <span class="n">pivoted_df</span><span class="p">[</span><span class="s1">&#39;Date&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">to_datetime</span><span class="p">(</span><span class="n">pivoted_df</span><span class="p">[</span><span class="s1">&#39;Date&#39;</span><span class="p">])</span>
+
+    <span class="c1"># Flatten the MultiIndex columns and combine ISO3 into the column names</span>
+    <span class="n">pivoted_df</span><span class="o">.</span><span class="n">columns</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;, ISO3 = &#39;</span><span class="o">.</span><span class="n">join</span><span class="p">([</span><span class="nb">str</span><span class="p">(</span><span class="n">elem</span><span class="p">)</span> <span class="k">for</span> <span class="n">elem</span> <span class="ow">in</span> <span class="n">col</span> <span class="k">if</span> <span class="n">elem</span><span class="p">])</span> <span class="k">for</span> <span class="n">col</span> <span class="ow">in</span> <span class="n">pivoted_df</span><span class="o">.</span><span class="n">columns</span><span class="p">]</span>
+
+    <span class="k">return</span> <span class="n">pivoted_df</span></div>
+
+
+<span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">DONE</span>
+<span class="sd">&#39;&#39;&#39;</span>
+<div class="viewcode-block" id="energy_readin">
+<a class="viewcode-back" href="../api_reference.html#file_readin_functions.energy_readin">[docs]</a>
+<span class="k">def</span> <span class="nf">energy_readin</span><span class="p">(</span><span class="n">file</span> <span class="o">=</span> <span class="sa">r</span><span class="s2">&quot;datasets\MER_T02_01A.csv&quot;</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Read and process energy market data from a CSV file.</span>
+
+<span class="sd">    This function reads energy market data, processes it into a time series format,</span>
+<span class="sd">    and handles multiple energy indicators. It performs data cleaning and transformation</span>
+<span class="sd">    to create a structured time series dataset.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    file : str, default=r&quot;datasets\MER_T02_01A.csv&quot;</span>
+<span class="sd">        Path to the CSV file containing energy market data.</span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    pandas.DataFrame</span>
+<span class="sd">        Processed DataFrame with:</span>
+<span class="sd">        - &#39;Date&#39; column in datetime format</span>
+<span class="sd">        - Energy market indicators as columns</span>
+<span class="sd">        - Values representing energy metrics over time</span>
+
+<span class="sd">    Notes</span>
+<span class="sd">    -----</span>
+<span class="sd">    Design Decisions:</span>
+<span class="sd">    1. Data Cleaning:</span>
+<span class="sd">       - Removes unnecessary columns and whitespace</span>
+<span class="sd">       - Handles missing values and special characters</span>
+<span class="sd">       - Standardizes column names and formats</span>
+<span class="sd">    </span>
+<span class="sd">    2. Date Processing:</span>
+<span class="sd">       - Converts date strings to datetime objects</span>
+<span class="sd">       - Handles various date formats in input data</span>
+<span class="sd">       - Creates consistent time series index</span>
+<span class="sd">    </span>
+<span class="sd">    3. Data Transformation:</span>
+<span class="sd">       - Pivots data for time series analysis</span>
+<span class="sd">       - Maintains data relationships</span>
+<span class="sd">       - Preserves original data granularity</span>
+<span class="sd">    </span>
+
+<span class="sd">    TODO: find better energy data set</span>
+
+<span class="sd">    Examples</span>
+<span class="sd">    --------</span>
+<span class="sd">    &gt;&gt;&gt; # Read energy data from default file location</span>
+<span class="sd">    &gt;&gt;&gt; energy_data = energy_readin()</span>
+<span class="sd">    &gt;&gt;&gt; print(energy_data.columns)  # Shows available energy indicators</span>
+<span class="sd">    &gt;&gt;&gt; </span>
+<span class="sd">    &gt;&gt;&gt; # Read from custom file location</span>
+<span class="sd">    &gt;&gt;&gt; custom_data = energy_readin(&quot;path/to/energy_data.csv&quot;)</span>
+<span class="sd">    &gt;&gt;&gt; print(custom_data.head())</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">df</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">read_csv</span><span class="p">(</span><span class="n">file</span><span class="p">)</span>
+    
+    <span class="c1"># A list of all quantifiers</span>
+    <span class="c1">#quantifiers_list = df[&quot;MSN&quot;].unique()</span>
+    
+    <span class="c1"># If a date in this data set ends in 13 that means it is a yearly sum aggragate</span>
+    <span class="n">df</span> <span class="o">=</span> <span class="n">df</span><span class="p">[</span><span class="o">~</span><span class="n">df</span><span class="p">[</span><span class="s1">&#39;YYYYMM&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="nb">str</span><span class="p">)</span><span class="o">.</span><span class="n">str</span><span class="o">.</span><span class="n">endswith</span><span class="p">(</span><span class="s1">&#39;13&#39;</span><span class="p">)]</span>
+
+    <span class="c1"># Convert to DateTime Format</span>
+    <span class="n">df</span><span class="p">[</span><span class="s1">&#39;Date&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">to_datetime</span><span class="p">(</span><span class="n">df</span><span class="p">[</span><span class="s1">&#39;YYYYMM&#39;</span><span class="p">],</span> <span class="nb">format</span><span class="o">=</span><span class="s1">&#39;%Y%m&#39;</span><span class="p">)</span>
+
+    <span class="c1"># Drop YYYYMM Do not call this column after if debugging</span>
+    <span class="n">df</span><span class="o">.</span><span class="n">drop</span><span class="p">([</span><span class="s2">&quot;YYYYMM&quot;</span><span class="p">],</span> <span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">inplace</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+
+    <span class="c1"># Pivot on Type of Usage</span>
+    <span class="n">pivoted_df</span> <span class="o">=</span> <span class="n">df</span><span class="o">.</span><span class="n">pivot_table</span><span class="p">(</span><span class="n">index</span><span class="o">=</span><span class="s2">&quot;Date&quot;</span><span class="p">,</span> <span class="n">columns</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;MSN&quot;</span><span class="p">],</span> <span class="n">values</span><span class="o">=</span><span class="s2">&quot;Value&quot;</span><span class="p">)</span>
+    
+    <span class="c1"># Create a dictionary to store DataFrames for each MSN</span>
+    <span class="c1">#MSN_dfs = {}</span>
+    
+    <span class="n">pivoted_df</span> <span class="o">=</span> <span class="n">pivoted_df</span><span class="o">.</span><span class="n">reset_index</span><span class="p">()</span>
+
+    <span class="c1"># Ensure &#39;Date&#39; is in datetime format</span>
+    <span class="n">pivoted_df</span><span class="p">[</span><span class="s1">&#39;Date&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">to_datetime</span><span class="p">(</span><span class="n">pivoted_df</span><span class="p">[</span><span class="s1">&#39;Date&#39;</span><span class="p">])</span>
+    
+    <span class="k">return</span> <span class="n">pivoted_df</span><span class="o">.</span><span class="n">reset_index</span><span class="p">()</span></div>
+
+
+<div class="viewcode-block" id="OECD_global_demographics_readin">
+<a class="viewcode-back" href="../api_reference.html#file_readin_functions.OECD_global_demographics_readin">[docs]</a>
+<span class="k">def</span> <span class="nf">OECD_global_demographics_readin</span><span class="p">(</span><span class="n">file</span> <span class="o">=</span> <span class="s2">&quot;datasets/OECD.ELS.SAE,DSD_POPULATION@DF_POP_HIST,1.0+..PS.F+M...csv&quot;</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Read and process OECD global demographic data from a CSV file.</span>
+
+<span class="sd">    This function reads OECD demographic data, processes it into a time series format,</span>
+<span class="sd">    and handles multiple demographic indicators across countries. It performs data</span>
+<span class="sd">    transformation to create a structured demographic dataset.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    file : str, default=&quot;datasets/OECD.ELS.SAE,DSD_POPULATION@DF_POP_HIST,1.0+..PS.F+M...csv&quot;</span>
+<span class="sd">        Path to the CSV file containing OECD demographic data.</span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    pandas.DataFrame</span>
+<span class="sd">        Processed DataFrame with:</span>
+<span class="sd">        - &#39;Date&#39; column in datetime format</span>
+<span class="sd">        - Demographic indicators as columns</span>
+<span class="sd">        - Values representing population metrics over time</span>
+
+<span class="sd">    Notes</span>
+<span class="sd">    -----</span>
+<span class="sd">    Design Decisions:</span>
+<span class="sd">    1. Data Processing:</span>
+<span class="sd">       - Handles OECD&#39;s specific data format</span>
+<span class="sd">       - Processes demographic indicators</span>
+<span class="sd">       - Maintains country-specific information</span>
+<span class="sd">    </span>
+<span class="sd">    2. Time Series Handling:</span>
+<span class="sd">       - Converts OECD date format to standard datetime</span>
+<span class="sd">       - Creates consistent time series structure</span>
+<span class="sd">       - Handles periodic data points</span>
+<span class="sd">    </span>
+<span class="sd">    3. Data Organization:</span>
+<span class="sd">       - Structures data by demographic indicators</span>
+<span class="sd">       - Preserves country-level granularity</span>
+<span class="sd">       - Maintains data relationships</span>
+<span class="sd">    </span>
+<span class="sd">    4. Quality Control:</span>
+<span class="sd">       - Validates demographic data</span>
+<span class="sd">       - Handles missing values appropriately</span>
+<span class="sd">       - Ensures data consistency</span>
+
+<span class="sd">    Examples</span>
+<span class="sd">    --------</span>
+<span class="sd">    &gt;&gt;&gt; # Read demographic data from default file location</span>
+<span class="sd">    &gt;&gt;&gt; demo_data = OECD_global_demographics_readin()</span>
+<span class="sd">    &gt;&gt;&gt; print(demo_data.columns)  # Shows available demographic indicators</span>
+<span class="sd">    &gt;&gt;&gt; </span>
+<span class="sd">    &gt;&gt;&gt; # Read from custom file location</span>
+<span class="sd">    &gt;&gt;&gt; custom_data = OECD_global_demographics_readin(&quot;path/to/demo_data.csv&quot;)</span>
+<span class="sd">    &gt;&gt;&gt; print(custom_data.head())</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">df</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">read_csv</span><span class="p">(</span><span class="n">file</span><span class="p">)</span>
+    
+    <span class="c1"># A list of all quantifiers</span>
+    <span class="n">quantifiers_list</span> <span class="o">=</span> <span class="n">df</span><span class="p">[</span><span class="s2">&quot;AGE&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">unique</span><span class="p">()</span>
+    
+    <span class="c1"># Rename the column from &quot;Reference area&quot; to &quot;Country&quot;</span>
+    <span class="n">df</span> <span class="o">=</span> <span class="n">df</span><span class="o">.</span><span class="n">rename</span><span class="p">(</span><span class="n">columns</span><span class="o">=</span><span class="p">{</span><span class="s2">&quot;Reference area&quot;</span><span class="p">:</span> <span class="s2">&quot;Country&quot;</span><span class="p">,</span> <span class="s2">&quot;REF_AREA&quot;</span><span class="p">:</span> <span class="s2">&quot;ISO3&quot;</span><span class="p">})</span>
+    
+    <span class="c1"># Convert to DateTime Format</span>
+    <span class="n">df</span><span class="p">[</span><span class="s1">&#39;Date&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">to_datetime</span><span class="p">(</span><span class="n">df</span><span class="p">[</span><span class="s1">&#39;TIME_PERIOD&#39;</span><span class="p">],</span> <span class="nb">format</span><span class="o">=</span><span class="s1">&#39;%Y&#39;</span><span class="p">)</span>
+
+    <span class="c1"># Drop YYYYMM Do not call this column after if debugging</span>
+    <span class="n">df</span><span class="o">.</span><span class="n">drop</span><span class="p">([</span><span class="s2">&quot;TIME_PERIOD&quot;</span><span class="p">],</span> <span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">inplace</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+
+    <span class="c1"># Pivot on Type of AGE, IS03, then SEX</span>
+    <span class="n">pivoted_df</span> <span class="o">=</span> <span class="n">df</span><span class="o">.</span><span class="n">pivot_table</span><span class="p">(</span><span class="n">index</span><span class="o">=</span><span class="s2">&quot;Date&quot;</span><span class="p">,</span> <span class="n">columns</span><span class="o">=</span> <span class="p">[</span><span class="s2">&quot;AGE&quot;</span><span class="p">,</span> <span class="s2">&quot;ISO3&quot;</span><span class="p">,</span> <span class="s2">&quot;SEX&quot;</span><span class="p">],</span> <span class="n">values</span><span class="o">=</span><span class="s2">&quot;OBS_VALUE&quot;</span><span class="p">)</span>
+    
+    <span class="n">pivoted_df</span> <span class="o">=</span> <span class="n">pivoted_df</span><span class="o">.</span><span class="n">reset_index</span><span class="p">()</span>
+    <span class="n">pivoted_df</span><span class="p">[</span><span class="s1">&#39;Date&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">to_datetime</span><span class="p">(</span><span class="n">pivoted_df</span><span class="p">[</span><span class="s1">&#39;Date&#39;</span><span class="p">])</span>
+    
+    <span class="c1"># Flatten the MultiIndex columns into strings</span>
+    <span class="n">pivoted_df</span><span class="o">.</span><span class="n">columns</span> <span class="o">=</span> <span class="p">[</span>
+        <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">col</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="si">}</span><span class="s2">, ISO3 = </span><span class="si">{</span><span class="n">col</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="si">}</span><span class="s2">, SEX = </span><span class="si">{</span><span class="n">col</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span><span class="si">}</span><span class="s2">&quot;</span> 
+        <span class="k">if</span> <span class="n">col</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="ow">and</span> <span class="n">col</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span> <span class="k">else</span> <span class="n">col</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> 
+        <span class="k">for</span> <span class="n">col</span> <span class="ow">in</span> <span class="n">pivoted_df</span><span class="o">.</span><span class="n">columns</span>
+    <span class="p">]</span>
+
+    <span class="c1"># Rename the &#39;Date&#39; column from the tuple (&#39;Date&#39;, &#39;&#39;, &#39;&#39;) to &#39;Date&#39;</span>
+    <span class="n">pivoted_df</span> <span class="o">=</span> <span class="n">pivoted_df</span><span class="o">.</span><span class="n">rename</span><span class="p">(</span><span class="n">columns</span><span class="o">=</span><span class="p">{</span><span class="n">pivoted_df</span><span class="o">.</span><span class="n">columns</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]:</span> <span class="s1">&#39;Date&#39;</span><span class="p">})</span>
+    
+    <span class="k">return</span> <span class="n">pivoted_df</span></div>
+
+
+<span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">DONE</span>
+<span class="sd">&#39;&#39;&#39;</span>
+<div class="viewcode-block" id="OECD_forex_readin">
+<a class="viewcode-back" href="../api_reference.html#file_readin_functions.OECD_forex_readin">[docs]</a>
+<span class="k">def</span> <span class="nf">OECD_forex_readin</span><span class="p">(</span><span class="n">file</span> <span class="o">=</span> <span class="s2">&quot;datasets/OECD.SDD.NAD,DSD_NAMAIN10@DF_TABLE4,1.0,filtered,2024-03-04 17-04-58.csv&quot;</span><span class="p">):</span>
+    <span class="n">df</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">read_csv</span><span class="p">(</span><span class="n">file</span><span class="p">)</span>
+    
+    <span class="c1"># Rename the column from &quot;Reference area&quot; to &quot;Country&quot;</span>
+    <span class="n">df</span> <span class="o">=</span> <span class="n">df</span><span class="o">.</span><span class="n">rename</span><span class="p">(</span><span class="n">columns</span><span class="o">=</span><span class="p">{</span><span class="s2">&quot;Reference area&quot;</span><span class="p">:</span> <span class="s2">&quot;Country&quot;</span><span class="p">,</span> <span class="s2">&quot;REF_AREA&quot;</span><span class="p">:</span> <span class="s2">&quot;ISO3&quot;</span><span class="p">})</span>
+    
+    <span class="c1"># A list of all quantifiers</span>
+    <span class="n">quantifiers_list</span> <span class="o">=</span> <span class="n">df</span><span class="p">[</span><span class="s2">&quot;TRANSACTION&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">unique</span><span class="p">()</span>
+
+    <span class="c1"># Convert to DateTime Format</span>
+    <span class="n">df</span><span class="p">[</span><span class="s1">&#39;Date&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">to_datetime</span><span class="p">(</span><span class="n">df</span><span class="p">[</span><span class="s1">&#39;TIME_PERIOD&#39;</span><span class="p">],</span> <span class="nb">format</span><span class="o">=</span><span class="s1">&#39;%Y&#39;</span><span class="p">)</span>
+
+    <span class="c1"># Drop YYYYMM Do not call this column after if debugging</span>
+    <span class="n">df</span><span class="o">.</span><span class="n">drop</span><span class="p">([</span><span class="s2">&quot;TIME_PERIOD&quot;</span><span class="p">],</span> <span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">inplace</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+
+    <span class="c1"># Pivot on Type of TRANSACTION and ISO3</span>
+    <span class="n">pivoted_df</span> <span class="o">=</span> <span class="n">df</span><span class="o">.</span><span class="n">pivot_table</span><span class="p">(</span><span class="n">index</span><span class="o">=</span><span class="s2">&quot;Date&quot;</span><span class="p">,</span> <span class="n">columns</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;TRANSACTION&quot;</span><span class="p">,</span> <span class="s2">&quot;ISO3&quot;</span><span class="p">],</span> <span class="n">values</span><span class="o">=</span><span class="s2">&quot;OBS_VALUE&quot;</span><span class="p">)</span>
+
+    <span class="c1"># Create a dictionary to store DataFrames for each transaction</span>
+    <span class="n">transaction_dfs</span> <span class="o">=</span> <span class="p">{}</span>
+
+    <span class="c1"># Iterate over the quantifiers list</span>
+    <span class="k">for</span> <span class="n">quantifier</span> <span class="ow">in</span> <span class="n">quantifiers_list</span><span class="p">:</span>
+        <span class="c1"># Filter the pivoted DataFrame for the current quantifier</span>
+        <span class="n">filtered_df</span> <span class="o">=</span> <span class="n">pivoted_df</span><span class="p">[</span><span class="n">quantifier</span><span class="p">]</span>
+        
+        <span class="c1"># If the filtered DataFrame is not empty</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">filtered_df</span><span class="o">.</span><span class="n">empty</span><span class="p">:</span>
+            <span class="c1"># Store the DataFrame in the dictionary with the quantifier name as the key</span>
+            <span class="n">transaction_dfs</span><span class="p">[</span><span class="n">quantifier</span><span class="p">]</span> <span class="o">=</span> <span class="n">filtered_df</span>
+    
+    <span class="n">pivoted_df</span> <span class="o">=</span> <span class="n">pivoted_df</span><span class="o">.</span><span class="n">reset_index</span><span class="p">()</span>
+    
+    <span class="n">pivoted_df</span><span class="p">[</span><span class="s1">&#39;Date&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">to_datetime</span><span class="p">(</span><span class="n">pivoted_df</span><span class="p">[</span><span class="s1">&#39;Date&#39;</span><span class="p">])</span>
+    
+    <span class="n">pivoted_df</span><span class="o">.</span><span class="n">columns</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;, ISO3 = &#39;</span><span class="o">.</span><span class="n">join</span><span class="p">([</span><span class="nb">str</span><span class="p">(</span><span class="n">elem</span><span class="p">)</span> <span class="k">for</span> <span class="n">elem</span> <span class="ow">in</span> <span class="n">col</span> <span class="k">if</span> <span class="n">elem</span><span class="p">])</span> <span class="k">for</span> <span class="n">col</span> <span class="ow">in</span> <span class="n">pivoted_df</span><span class="o">.</span><span class="n">columns</span><span class="p">]</span>
+    
+    <span class="k">return</span> <span class="n">pivoted_df</span></div>
+
+
+<span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">DONE</span>
+<span class="sd">&#39;&#39;&#39;</span>
+<div class="viewcode-block" id="UN_green_coffee_readin">
+<a class="viewcode-back" href="../api_reference.html#file_readin_functions.UN_green_coffee_readin">[docs]</a>
+<span class="k">def</span> <span class="nf">UN_green_coffee_readin</span><span class="p">(</span><span class="n">file1</span> <span class="o">=</span> <span class="s2">&quot;datasets/UN Green Coffee Production.csv&quot;</span><span class="p">,</span> 
+                           <span class="n">file2</span> <span class="o">=</span> <span class="s2">&quot;datasets/green_coffee_prod_iso3.csv&quot;</span><span class="p">,</span> 
+                           <span class="n">add_iso</span> <span class="o">=</span> <span class="kc">False</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Read and process UN green coffee production data from CSV files.</span>
+
+<span class="sd">    This function reads UN coffee production data and optionally combines it with ISO3</span>
+<span class="sd">    country codes. It processes the data into a time series format and handles multiple</span>
+<span class="sd">    coffee production indicators across countries.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    file1 : str, default=&quot;datasets/UN Green Coffee Production.csv&quot;</span>
+<span class="sd">        Path to the CSV file containing UN green coffee production data.</span>
+<span class="sd">    file2 : str, default=&quot;datasets/green_coffee_prod_iso3.csv&quot;</span>
+<span class="sd">        Path to the CSV file containing ISO3 country codes mapping.</span>
+<span class="sd">    add_iso : bool, default=False</span>
+<span class="sd">        Whether to add ISO3 country codes to the dataset.</span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    pandas.DataFrame</span>
+<span class="sd">        Processed DataFrame with:</span>
+<span class="sd">        - &#39;Date&#39; column in datetime format</span>
+<span class="sd">        - Coffee production indicators as columns</span>
+<span class="sd">        - Optional ISO3 country codes</span>
+<span class="sd">        - Values representing coffee production metrics over time</span>
+
+<span class="sd">    Notes</span>
+<span class="sd">    -----</span>
+<span class="sd">    Design Decisions:</span>
+<span class="sd">    1. Data Integration:</span>
+<span class="sd">       - Optional ISO3 code integration</span>
+<span class="sd">       - Handles country name variations</span>
+<span class="sd">       - Maintains data integrity during merging</span>
+<span class="sd">    </span>
+<span class="sd">    2. Time Series Processing:</span>
+<span class="sd">       - Converts production periods to datetime</span>
+<span class="sd">       - Creates consistent time series structure</span>
+<span class="sd">       - Handles seasonal production data</span>
+<span class="sd">    </span>
+<span class="sd">    3. Data Organization:</span>
+<span class="sd">       - Structures by production indicators</span>
+<span class="sd">       - Preserves country-level granularity</span>
+<span class="sd">       - Maintains production relationships</span>
+<span class="sd">    </span>
+<span class="sd">    4. Quality Control:</span>
+<span class="sd">       - Validates production data</span>
+<span class="sd">       - Handles missing values appropriately</span>
+<span class="sd">       - Ensures data consistency</span>
+
+
+<span class="sd">    Examples</span>
+<span class="sd">    --------</span>
+<span class="sd">    &gt;&gt;&gt; # Read coffee data without ISO3 codes</span>
+<span class="sd">    &gt;&gt;&gt; coffee_data = UN_green_coffee_readin()</span>
+<span class="sd">    &gt;&gt;&gt; print(coffee_data.columns)  # Shows available production indicators</span>
+<span class="sd">    &gt;&gt;&gt; </span>
+<span class="sd">    &gt;&gt;&gt; # Read data with ISO3 codes</span>
+<span class="sd">    &gt;&gt;&gt; coffee_data_iso = UN_green_coffee_readin(add_iso=True)</span>
+<span class="sd">    &gt;&gt;&gt; print(coffee_data_iso.head())</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">if</span><span class="p">(</span><span class="ow">not</span> <span class="n">add_iso</span><span class="p">):</span>
+        <span class="n">df</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">read_csv</span><span class="p">(</span><span class="n">file2</span><span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">df</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">read_csv</span><span class="p">(</span><span class="n">file1</span><span class="p">)</span>
+    
+    <span class="c1"># Rename the column from &quot;Reference area&quot; to &quot;Country&quot;</span>
+    <span class="k">if</span><span class="p">(</span><span class="n">add_iso</span><span class="p">):</span>
+        <span class="n">df</span> <span class="o">=</span> <span class="n">df</span><span class="o">.</span><span class="n">rename</span><span class="p">(</span><span class="n">columns</span><span class="o">=</span><span class="p">{</span><span class="s2">&quot;Country or Area&quot;</span><span class="p">:</span> <span class="s2">&quot;Country&quot;</span><span class="p">})</span>
+        <span class="n">df</span><span class="p">[</span><span class="s1">&#39;ISO3&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">df</span><span class="p">[</span><span class="s1">&#39;Country&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">apply</span><span class="p">(</span><span class="n">uf</span><span class="o">.</span><span class="n">country_name_to_iso3</span><span class="p">)</span>
+        <span class="n">df</span><span class="o">.</span><span class="n">to_csv</span><span class="p">(</span><span class="s1">&#39;green_coffee_prod_iso3.csv&#39;</span><span class="p">,</span> <span class="n">index</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+    
+    <span class="c1"># Convert the Year column to datetime</span>
+    <span class="n">df</span><span class="p">[</span><span class="s1">&#39;Date&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">to_datetime</span><span class="p">(</span><span class="n">df</span><span class="p">[</span><span class="s1">&#39;Year&#39;</span><span class="p">],</span> <span class="nb">format</span><span class="o">=</span><span class="s1">&#39;%Y&#39;</span><span class="p">)</span>
+
+    <span class="c1"># Drop duplicate entries if any</span>
+    <span class="n">df</span> <span class="o">=</span> <span class="n">df</span><span class="o">.</span><span class="n">drop_duplicates</span><span class="p">(</span><span class="n">subset</span><span class="o">=</span><span class="p">[</span><span class="s1">&#39;Date&#39;</span><span class="p">,</span> <span class="s1">&#39;Element&#39;</span><span class="p">,</span> <span class="s1">&#39;ISO3&#39;</span><span class="p">])</span>
+
+    <span class="c1"># Pivot the DataFrame</span>
+    <span class="n">pivoted_df</span> <span class="o">=</span> <span class="n">df</span><span class="o">.</span><span class="n">pivot</span><span class="p">(</span><span class="n">index</span><span class="o">=</span><span class="s2">&quot;Date&quot;</span><span class="p">,</span> <span class="n">columns</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;Element&quot;</span><span class="p">,</span> <span class="s2">&quot;ISO3&quot;</span><span class="p">],</span> <span class="n">values</span><span class="o">=</span><span class="s2">&quot;Value&quot;</span><span class="p">)</span>
+
+    <span class="c1"># Get unique quantifiers</span>
+    <span class="n">quantifiers_list</span> <span class="o">=</span> <span class="n">df</span><span class="p">[</span><span class="s2">&quot;Element&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">unique</span><span class="p">()</span>
+    
+    <span class="c1"># Create a dictionary to store DataFrames for each indicator</span>
+    <span class="n">indicator_dfs</span> <span class="o">=</span> <span class="p">{}</span>
+
+    <span class="c1"># Iterate over the quantifiers list</span>
+    <span class="k">for</span> <span class="n">quantifier</span> <span class="ow">in</span> <span class="n">quantifiers_list</span><span class="p">:</span>
+        <span class="c1"># Filter the pivoted DataFrame for the current quantifier</span>
+        <span class="n">filtered_df</span> <span class="o">=</span> <span class="n">pivoted_df</span><span class="p">[</span><span class="n">quantifier</span><span class="p">]</span>
+        
+        <span class="c1"># If the filtered DataFrame is not empty</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">filtered_df</span><span class="o">.</span><span class="n">empty</span><span class="p">:</span>
+            <span class="c1"># Store the DataFrame in the dictionary with the quantifier name as the key</span>
+            <span class="n">indicator_dfs</span><span class="p">[</span><span class="n">quantifier</span><span class="p">]</span> <span class="o">=</span> <span class="n">filtered_df</span>
+
+    <span class="c1"># Print the dictionary containing separate DataFrames for each indicator</span>
+<span class="w">    </span><span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">    for quantifier, df in indicator_dfs.items():</span>
+<span class="sd">        print(f&quot;Quantifier: {quantifier}&quot;)</span>
+<span class="sd">        print(df)</span>
+<span class="sd">        print()</span>
+<span class="sd">    &#39;&#39;&#39;</span> 
+    
+    <span class="n">pivoted_df</span> <span class="o">=</span> <span class="n">pivoted_df</span><span class="o">.</span><span class="n">reset_index</span><span class="p">()</span>
+    <span class="n">pivoted_df</span><span class="p">[</span><span class="s1">&#39;Date&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">to_datetime</span><span class="p">(</span><span class="n">pivoted_df</span><span class="p">[</span><span class="s1">&#39;Date&#39;</span><span class="p">])</span>
+    
+    <span class="n">pivoted_df</span><span class="o">.</span><span class="n">columns</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;, ISO3 = &#39;</span><span class="o">.</span><span class="n">join</span><span class="p">([</span><span class="nb">str</span><span class="p">(</span><span class="n">elem</span><span class="p">)</span> <span class="k">for</span> <span class="n">elem</span> <span class="ow">in</span> <span class="n">col</span> <span class="k">if</span> <span class="n">elem</span><span class="p">])</span> <span class="k">for</span> <span class="n">col</span> <span class="ow">in</span> <span class="n">pivoted_df</span><span class="o">.</span><span class="n">columns</span><span class="p">]</span>
+    
+    
+    <span class="k">return</span> <span class="n">pivoted_df</span></div>
+
+
+<span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">DONE</span>
+<span class="sd">&#39;&#39;&#39;</span>
+<div class="viewcode-block" id="futures_readin_bind">
+<a class="viewcode-back" href="../api_reference.html#file_readin_functions.futures_readin_bind">[docs]</a>
+<span class="k">def</span> <span class="nf">futures_readin_bind</span><span class="p">(</span><span class="n">file1</span> <span class="o">=</span> <span class="s2">&quot;datasets/US Coffee C Futures Historical Data.csv&quot;</span><span class="p">,</span> 
+                        <span class="n">file2</span> <span class="o">=</span> <span class="s2">&quot;datasets/US Coffee C Futures Historical Data(1).csv&quot;</span><span class="p">,</span> 
+                        <span class="n">file3</span> <span class="o">=</span> <span class="s2">&quot;datasets/US Coffee C Futures Historical Data(2).csv&quot;</span><span class="p">,</span> 
+                        <span class="n">file4</span> <span class="o">=</span> <span class="s2">&quot;datasets/US Coffee C Futures Historical Data(3).csv&quot;</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Read and combine multiple US Coffee C Futures historical data files.</span>
+
+<span class="sd">    This function reads multiple CSV files containing coffee futures data,</span>
+<span class="sd">    combines them into a single dataset, and processes them into a consistent</span>
+<span class="sd">    time series format. It handles data deduplication and ensures temporal continuity.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    file1 : str, default=&quot;datasets/US Coffee C Futures Historical Data.csv&quot;</span>
+<span class="sd">        Path to the first CSV file containing futures data.</span>
+<span class="sd">    file2 : str, default=&quot;datasets/US Coffee C Futures Historical Data(1).csv&quot;</span>
+<span class="sd">        Path to the second CSV file containing futures data.</span>
+<span class="sd">    file3 : str, default=&quot;datasets/US Coffee C Futures Historical Data(2).csv&quot;</span>
+<span class="sd">        Path to the third CSV file containing futures data.</span>
+<span class="sd">    file4 : str, default=&quot;datasets/US Coffee C Futures Historical Data(3).csv&quot;</span>
+<span class="sd">        Path to the fourth CSV file containing futures data.</span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    pandas.DataFrame</span>
+<span class="sd">        Combined and processed DataFrame with:</span>
+<span class="sd">        - &#39;Date&#39; column in datetime format</span>
+<span class="sd">        - Standard futures trading metrics (Open, High, Low, Close, etc.)</span>
+<span class="sd">        - Consistent data format across all time periods</span>
+
+<span class="sd">    Notes</span>
+<span class="sd">    -----</span>
+<span class="sd">    Design Decisions:</span>
+<span class="sd">    1. Data Integration:</span>
+<span class="sd">       - Combines multiple historical data files</span>
+<span class="sd">       - Handles overlapping time periods</span>
+<span class="sd">       - Maintains data consistency across sources</span>
+<span class="sd">    </span>
+<span class="sd">    2. Time Series Processing:</span>
+<span class="sd">       - Converts trading dates to datetime</span>
+<span class="sd">       - Creates continuous time series</span>
+<span class="sd">       - Handles market holidays and gaps</span>
+<span class="sd">    </span>
+<span class="sd">    3. Data Standardization:</span>
+<span class="sd">       - Normalizes column names</span>
+<span class="sd">       - Standardizes data types</span>
+<span class="sd">       - Ensures consistent units</span>
+<span class="sd">    </span>
+<span class="sd">    4. Quality Control:</span>
+<span class="sd">       - Removes duplicate entries</span>
+<span class="sd">       - Validates price data</span>
+<span class="sd">       - Ensures temporal ordering</span>
+
+<span class="sd">    Examples</span>
+<span class="sd">    --------</span>
+<span class="sd">    &gt;&gt;&gt; # Read futures data from default file locations</span>
+<span class="sd">    &gt;&gt;&gt; futures_data = futures_readin_bind()</span>
+<span class="sd">    &gt;&gt;&gt; print(futures_data.columns)  # Shows available trading metrics</span>
+<span class="sd">    &gt;&gt;&gt; </span>
+<span class="sd">    &gt;&gt;&gt; # Read from custom file locations</span>
+<span class="sd">    &gt;&gt;&gt; custom_data = futures_readin_bind(</span>
+<span class="sd">    ...     &quot;path/to/file1.csv&quot;,</span>
+<span class="sd">    ...     &quot;path/to/file2.csv&quot;,</span>
+<span class="sd">    ...     &quot;path/to/file3.csv&quot;,</span>
+<span class="sd">    ...     &quot;path/to/file4.csv&quot;</span>
+<span class="sd">    ... )</span>
+<span class="sd">    &gt;&gt;&gt; print(custom_data.head())</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="c1"># Read in the CSV files</span>
+    <span class="n">df1</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">read_csv</span><span class="p">(</span><span class="n">file1</span><span class="p">)</span>
+    <span class="n">df2</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">read_csv</span><span class="p">(</span><span class="n">file2</span><span class="p">)</span>
+    <span class="n">df3</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">read_csv</span><span class="p">(</span><span class="n">file3</span><span class="p">)</span>
+    <span class="n">df4</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">read_csv</span><span class="p">(</span><span class="n">file4</span><span class="p">)</span>
+    
+    <span class="c1"># Concatenate the data frames</span>
+    <span class="n">merged_df</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">concat</span><span class="p">([</span><span class="n">df1</span><span class="p">,</span> <span class="n">df2</span><span class="p">,</span> <span class="n">df3</span><span class="p">,</span> <span class="n">df4</span><span class="p">])</span>
+    
+    <span class="c1"># Convert date from string to DT object</span>
+    <span class="n">merged_df</span><span class="p">[</span><span class="s1">&#39;Date&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">merged_df</span><span class="p">[</span><span class="s1">&#39;Date&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="s1">&#39;datetime64[ns]&#39;</span><span class="p">)</span>
+    
+    <span class="c1"># Remove duplicates based on the &#39;Date&#39; column</span>
+    <span class="n">merged_df</span> <span class="o">=</span> <span class="n">merged_df</span><span class="o">.</span><span class="n">drop_duplicates</span><span class="p">(</span><span class="n">subset</span><span class="o">=</span><span class="p">[</span><span class="s1">&#39;Date&#39;</span><span class="p">])</span>
+    
+    <span class="c1"># Convert &#39;Change %&#39; column to numeric</span>
+    <span class="n">merged_df</span><span class="p">[</span><span class="s1">&#39;Change %&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">merged_df</span><span class="p">[</span><span class="s1">&#39;Change %&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">str</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s1">&#39;%&#39;</span><span class="p">,</span> <span class="s1">&#39;&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="nb">float</span><span class="p">)</span>
+    
+    <span class="c1"># Convert &#39;Vol.&#39; column to numeric</span>
+    <span class="n">merged_df</span><span class="p">[</span><span class="s1">&#39;Vol.&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">merged_df</span><span class="p">[</span><span class="s1">&#39;Vol.&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">str</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s1">&#39;K&#39;</span><span class="p">,</span> <span class="s1">&#39;&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="nb">float</span><span class="p">)</span>
+
+    <span class="c1"># Sort the dataframe based on the &#39;Date&#39; column</span>
+    <span class="n">merged_df</span> <span class="o">=</span> <span class="n">merged_df</span><span class="o">.</span><span class="n">sort_values</span><span class="p">(</span><span class="n">by</span><span class="o">=</span><span class="s1">&#39;Date&#39;</span><span class="p">)</span>
+
+    <span class="c1"># Reset index</span>
+    <span class="n">merged_df</span> <span class="o">=</span> <span class="n">merged_df</span><span class="o">.</span><span class="n">reset_index</span><span class="p">(</span><span class="n">drop</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+    
+    <span class="n">pivoted_df</span> <span class="o">=</span> <span class="n">merged_df</span><span class="o">.</span><span class="n">pivot_table</span><span class="p">(</span><span class="n">index</span><span class="o">=</span><span class="s2">&quot;Date&quot;</span><span class="p">)</span>
+    
+    <span class="n">pivoted_df</span> <span class="o">=</span> <span class="n">pivoted_df</span><span class="o">.</span><span class="n">reset_index</span><span class="p">()</span>
+    
+    <span class="k">return</span> <span class="n">pivoted_df</span></div>
+
+</pre></div>
+
+            <div class="clearer"></div>
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<search id="searchbox" style="display: none" role="search">
+  <h3 id="searchlabel">Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="../search.html" method="get">
+      <input type="text" name="q" aria-labelledby="searchlabel" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"/>
+      <input type="submit" value="Go" />
+    </form>
+    </div>
+</search>
+<script>document.getElementById('searchbox').style.display = "block"</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../index.html">CoffeeGPT 1.5.4 documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="index.html" >Module code</a> &#187;</li>
+        <li class="nav-item nav-item-this"><a href="">file_readin_functions</a></li> 
+      </ul>
+    </div>
+    <div class="footer" role="contentinfo">
+    &#169; Copyright 2025, John Hohman.
+      Created using <a href="https://www.sphinx-doc.org/">Sphinx</a> 7.3.7.
+    </div>
+  </body>
+</html>

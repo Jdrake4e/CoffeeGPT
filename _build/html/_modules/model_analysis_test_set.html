@@ -1,0 +1,861 @@
+<!DOCTYPE html>
+
+<html lang="en" data-content_root="../">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>model_analysis_test_set &#8212; CoffeeGPT 1.5.4 documentation</title>
+    <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=a746c00c" />
+    <link rel="stylesheet" type="text/css" href="../_static/nature.css?v=0f882399" />
+    <link rel="stylesheet" type="text/css" href="../_static/custom.css" />
+    <script src="../_static/documentation_options.js?v=1cd648e3"></script>
+    <script src="../_static/doctools.js?v=9a2dae69"></script>
+    <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" /> 
+  </head><body>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../index.html">CoffeeGPT 1.5.4 documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="index.html" accesskey="U">Module code</a> &#187;</li>
+        <li class="nav-item nav-item-this"><a href="">model_analysis_test_set</a></li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <h1>Source code for model_analysis_test_set</h1><div class="highlight"><pre>
+<span></span><span class="kn">import</span> <span class="nn">torch</span>
+<span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
+<span class="kn">import</span> <span class="nn">pandas</span> <span class="k">as</span> <span class="nn">pd</span>
+<span class="kn">from</span> <span class="nn">sklearn.metrics</span> <span class="kn">import</span> <span class="n">mean_squared_error</span>
+<span class="kn">import</span> <span class="nn">matplotlib.pyplot</span> <span class="k">as</span> <span class="nn">plt</span>
+<span class="kn">import</span> <span class="nn">seaborn</span> <span class="k">as</span> <span class="nn">sns</span>
+<span class="kn">import</span> <span class="nn">matplotlib.cm</span> <span class="k">as</span> <span class="nn">cm</span>
+
+<div class="viewcode-block" id="evaluate_test_set">
+<a class="viewcode-back" href="../api_reference.html#model_analysis_test_set.evaluate_test_set">[docs]</a>
+<span class="k">def</span> <span class="nf">evaluate_test_set</span><span class="p">(</span><span class="n">model</span><span class="p">,</span> <span class="n">test_loader</span><span class="p">,</span> <span class="n">scaler</span><span class="p">,</span> <span class="n">test_data</span><span class="p">,</span> <span class="n">sequence_size</span><span class="p">,</span> <span class="n">device</span><span class="o">=</span><span class="s1">&#39;cuda&#39;</span> <span class="k">if</span> <span class="n">torch</span><span class="o">.</span><span class="n">cuda</span><span class="o">.</span><span class="n">is_available</span><span class="p">()</span> <span class="k">else</span> <span class="s1">&#39;cpu&#39;</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Evaluate model performance on test set and generate predictions.</span>
+
+<span class="sd">    This function evaluates a trained model on test data, handling the conversion between</span>
+<span class="sd">    scaled and original values, and computing key performance metrics.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    model : torch.nn.Module</span>
+<span class="sd">        The trained PyTorch model to evaluate.</span>
+<span class="sd">    test_loader : torch.utils.data.DataLoader</span>
+<span class="sd">        DataLoader containing the test dataset.</span>
+<span class="sd">    scaler : sklearn.preprocessing._data.StandardScaler</span>
+<span class="sd">        Fitted scaler object used to inverse transform predictions.</span>
+<span class="sd">    test_data : pandas.DataFrame</span>
+<span class="sd">        Original test data containing all features. Used to determine feature dimensionality</span>
+<span class="sd">        and for date indexing.</span>
+<span class="sd">    sequence_size : int</span>
+<span class="sd">        The size of input sequences used during training.</span>
+<span class="sd">    device : str, optional</span>
+<span class="sd">        Device to run evaluation on, by default &#39;cuda&#39; if available else &#39;cpu&#39;.</span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    numpy.ndarray</span>
+<span class="sd">        predictions_original : Model predictions in original scale.</span>
+<span class="sd">    numpy.ndarray</span>
+<span class="sd">        true_values_original : True values in original scale.</span>
+<span class="sd">    float</span>
+<span class="sd">        rmse : Root Mean Square Error between predictions and true values.</span>
+<span class="sd">    pandas.DatetimeIndex</span>
+<span class="sd">        dates : DatetimeIndex corresponding to the predictions.</span>
+
+<span class="sd">    Notes</span>
+<span class="sd">    -----</span>
+<span class="sd">    Design Decisions:</span>
+<span class="sd">    1. The function assumes the target variable is the last column in the dataset</span>
+<span class="sd">       (excluding the index). This design choice simplifies the interface but requires</span>
+<span class="sd">       consistent data preprocessing.</span>
+<span class="sd">    2. Predictions are generated in batch mode for memory efficiency, especially</span>
+<span class="sd">       important for large test sets.</span>
+<span class="sd">    3. The scaler is applied to a zero-filled array with the same dimensionality</span>
+<span class="sd">       as the training data to ensure correct inverse transformation.</span>
+
+<span class="sd">    See Also</span>
+<span class="sd">    --------</span>
+<span class="sd">    plot_predictions : Function to visualize these predictions against true values.</span>
+
+<span class="sd">    Examples</span>
+<span class="sd">    --------</span>
+<span class="sd">    &gt;&gt;&gt; model = TransformerModel(input_dim=5)</span>
+<span class="sd">    &gt;&gt;&gt; predictions, true_values, rmse, dates = evaluate_test_set(</span>
+<span class="sd">    ...     model, test_loader, scaler, test_data, sequence_size=10</span>
+<span class="sd">    ... )</span>
+<span class="sd">    &gt;&gt;&gt; print(f&quot;Test RMSE: {rmse:.4f}&quot;)</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">model</span><span class="o">.</span><span class="n">eval</span><span class="p">()</span>
+    <span class="n">all_predictions</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="n">all_targets</span> <span class="o">=</span> <span class="p">[]</span>
+    
+    <span class="k">with</span> <span class="n">torch</span><span class="o">.</span><span class="n">no_grad</span><span class="p">():</span>
+        <span class="k">for</span> <span class="n">inputs</span><span class="p">,</span> <span class="n">targets</span> <span class="ow">in</span> <span class="n">test_loader</span><span class="p">:</span>
+            
+            <span class="n">inputs</span> <span class="o">=</span> <span class="n">inputs</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="n">device</span><span class="p">)</span>
+            <span class="n">targets</span> <span class="o">=</span> <span class="n">targets</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="n">device</span><span class="p">)</span>
+            
+            <span class="n">outputs</span> <span class="o">=</span> <span class="n">model</span><span class="p">(</span><span class="n">inputs</span><span class="p">)</span>
+            
+            <span class="n">predictions</span> <span class="o">=</span> <span class="n">outputs</span><span class="o">.</span><span class="n">cpu</span><span class="p">()</span><span class="o">.</span><span class="n">numpy</span><span class="p">()</span>
+            <span class="n">targets</span> <span class="o">=</span> <span class="n">targets</span><span class="o">.</span><span class="n">cpu</span><span class="p">()</span><span class="o">.</span><span class="n">numpy</span><span class="p">()</span>
+            
+            <span class="n">all_predictions</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="n">predictions</span><span class="p">)</span>
+            <span class="n">all_targets</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="n">targets</span><span class="p">)</span>
+    
+    <span class="n">predictions</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">all_predictions</span><span class="p">)</span>
+    <span class="n">true_values</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">all_targets</span><span class="p">)</span>
+    
+    <span class="c1"># Get the correct number of features from test_data</span>
+    <span class="n">num_features</span> <span class="o">=</span> <span class="n">test_data</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="o">-</span><span class="mi">1</span>
+    
+    <span class="c1"># Create dummy arrays with correct number of features</span>
+    <span class="n">pred_full</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">((</span><span class="nb">len</span><span class="p">(</span><span class="n">predictions</span><span class="p">),</span> <span class="n">num_features</span><span class="p">))</span>
+    <span class="n">true_full</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">((</span><span class="nb">len</span><span class="p">(</span><span class="n">true_values</span><span class="p">),</span> <span class="n">num_features</span><span class="p">))</span>
+    
+    <span class="c1"># Assuming the target is the last column</span>
+    <span class="n">target_idx</span> <span class="o">=</span> <span class="n">num_features</span> <span class="o">-</span> <span class="mi">1</span>
+    
+    <span class="c1"># Put predictions and true values in the correct column</span>
+    <span class="n">pred_full</span><span class="p">[:,</span> <span class="n">target_idx</span><span class="p">]</span> <span class="o">=</span> <span class="n">predictions</span><span class="o">.</span><span class="n">flatten</span><span class="p">()</span>
+    <span class="n">true_full</span><span class="p">[:,</span> <span class="n">target_idx</span><span class="p">]</span> <span class="o">=</span> <span class="n">true_values</span><span class="o">.</span><span class="n">flatten</span><span class="p">()</span>
+    
+    <span class="c1"># Inverse transform</span>
+    <span class="n">predictions_original</span> <span class="o">=</span> <span class="n">scaler</span><span class="o">.</span><span class="n">inverse_transform</span><span class="p">(</span><span class="n">pred_full</span><span class="p">)[:,</span> <span class="n">target_idx</span><span class="p">]</span>
+    <span class="n">true_values_original</span> <span class="o">=</span> <span class="n">scaler</span><span class="o">.</span><span class="n">inverse_transform</span><span class="p">(</span><span class="n">true_full</span><span class="p">)[:,</span> <span class="n">target_idx</span><span class="p">]</span>
+    
+    <span class="c1"># Calculate RMSE</span>
+    <span class="n">rmse</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="n">mean_squared_error</span><span class="p">(</span><span class="n">true_values_original</span><span class="p">,</span> <span class="n">predictions_original</span><span class="p">))</span>
+    
+    <span class="c1"># Get dates starting from the beginning of the test set</span>
+    <span class="n">dates</span> <span class="o">=</span> <span class="n">test_data</span><span class="o">.</span><span class="n">index</span><span class="p">[:</span><span class="nb">len</span><span class="p">(</span><span class="n">predictions_original</span><span class="p">)]</span>
+    
+    <span class="k">return</span> <span class="n">predictions_original</span><span class="p">,</span> <span class="n">true_values_original</span><span class="p">,</span> <span class="n">rmse</span><span class="p">,</span> <span class="n">dates</span></div>
+
+
+<div class="viewcode-block" id="plot_predictions">
+<a class="viewcode-back" href="../api_reference.html#model_analysis_test_set.plot_predictions">[docs]</a>
+<span class="k">def</span> <span class="nf">plot_predictions</span><span class="p">(</span><span class="n">predictions</span><span class="p">,</span> <span class="n">true_values</span><span class="p">,</span> <span class="n">test_data</span><span class="p">,</span> <span class="n">sequence_size</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Create comprehensive visualization of model predictions versus true values.</span>
+
+<span class="sd">    This function generates a two-panel plot showing both time series and regression</span>
+<span class="sd">    analysis of model predictions against true values. The visualization includes</span>
+<span class="sd">    statistical metrics and regression analysis to evaluate model performance.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    predictions : array-like</span>
+<span class="sd">        Model predictions in the original scale.</span>
+<span class="sd">    true_values : array-like</span>
+<span class="sd">        Actual values in the original scale.</span>
+<span class="sd">    test_data : pandas.DataFrame</span>
+<span class="sd">        Test dataset containing the date index. Must have either a &#39;Date&#39; column</span>
+<span class="sd">        or a DatetimeIndex.</span>
+<span class="sd">    sequence_size : int</span>
+<span class="sd">        The size of input sequences used during training, used for proper date alignment.</span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    None</span>
+<span class="sd">        Displays the plot using matplotlib&#39;s pyplot.</span>
+
+<span class="sd">    Notes</span>
+<span class="sd">    -----</span>
+<span class="sd">    Design Decisions:</span>
+<span class="sd">    1. Two-Panel Layout:</span>
+<span class="sd">       - Top panel: Time series plot showing temporal patterns and divergences</span>
+<span class="sd">       - Bottom panel: Regression plot with perfect prediction line for bias analysis</span>
+<span class="sd">    </span>
+<span class="sd">    2. Visual Elements:</span>
+<span class="sd">       - Uses alpha=0.5 for scatter plots to show point density</span>
+<span class="sd">       - Includes both regression line and perfect prediction line for comparison</span>
+<span class="sd">       - Grid enabled for better readability</span>
+<span class="sd">    </span>
+<span class="sd">    3. Metrics Display:</span>
+<span class="sd">       - RMSE (Root Mean Square Error) for absolute error measurement</span>
+<span class="sd">       - MAE (Mean Absolute Error) for average deviation</span>
+<span class="sd">       - R² score for goodness of fit</span>
+<span class="sd">    </span>
+<span class="sd">    4. Date Handling:</span>
+<span class="sd">       - Flexibly handles both &#39;Date&#39; column and DatetimeIndex formats</span>
+<span class="sd">       - Adjusts for sequence_size to ensure proper temporal alignment</span>
+
+<span class="sd">    See Also</span>
+<span class="sd">    --------</span>
+<span class="sd">    evaluate_test_set : Function that generates the predictions used by this visualization.</span>
+<span class="sd">    plot_training_history : Complementary function for visualizing training metrics.</span>
+
+<span class="sd">    Examples</span>
+<span class="sd">    --------</span>
+<span class="sd">    &gt;&gt;&gt; predictions = model.predict(test_data)</span>
+<span class="sd">    &gt;&gt;&gt; plot_predictions(predictions, true_values, test_data, sequence_size=10)</span>
+<span class="sd">    &gt;&gt;&gt; plt.show()  # If not in interactive mode</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    
+    <span class="k">if</span> <span class="s1">&#39;Date&#39;</span> <span class="ow">in</span> <span class="n">test_data</span><span class="o">.</span><span class="n">columns</span><span class="p">:</span>
+        <span class="n">dates</span> <span class="o">=</span> <span class="n">test_data</span><span class="p">[</span><span class="s1">&#39;Date&#39;</span><span class="p">]</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="c1"># If Date is in the index, reset index to get it as a column</span>
+        <span class="n">test_data</span> <span class="o">=</span> <span class="n">test_data</span><span class="o">.</span><span class="n">reset_index</span><span class="p">()</span>
+        <span class="n">dates</span> <span class="o">=</span> <span class="n">test_data</span><span class="p">[</span><span class="s1">&#39;Date&#39;</span><span class="p">]</span>
+    
+    <span class="c1"># Extract Dates</span>
+    <span class="n">dates</span> <span class="o">=</span> <span class="n">dates</span><span class="p">[</span><span class="n">sequence_size</span><span class="p">:]</span>
+    
+    <span class="c1"># Ensure arrays are 1-dimensional</span>
+    <span class="n">predictions</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="n">predictions</span><span class="p">)</span><span class="o">.</span><span class="n">flatten</span><span class="p">()</span>
+    <span class="n">true_values</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="n">true_values</span><span class="p">)</span><span class="o">.</span><span class="n">flatten</span><span class="p">()</span>
+    
+    <span class="n">plt</span><span class="o">.</span><span class="n">figure</span><span class="p">(</span><span class="n">figsize</span><span class="o">=</span><span class="p">(</span><span class="mi">12</span><span class="p">,</span> <span class="mi">8</span><span class="p">))</span>
+    
+    <span class="c1"># Time series plot (line plot)</span>
+    <span class="n">plt</span><span class="o">.</span><span class="n">subplot</span><span class="p">(</span><span class="mi">2</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
+    <span class="n">plt</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">dates</span><span class="p">,</span> <span class="n">predictions</span><span class="p">,</span> 
+            <span class="n">label</span><span class="o">=</span><span class="s1">&#39;Predictions&#39;</span><span class="p">,</span> <span class="n">linewidth</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span> <span class="n">alpha</span><span class="o">=</span><span class="mf">0.8</span><span class="p">)</span>
+    <span class="n">plt</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">dates</span><span class="p">,</span> <span class="n">true_values</span><span class="p">,</span> 
+            <span class="n">label</span><span class="o">=</span><span class="s1">&#39;True Values&#39;</span><span class="p">,</span> <span class="n">linewidth</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span> <span class="n">alpha</span><span class="o">=</span><span class="mf">0.8</span><span class="p">)</span>
+    <span class="n">plt</span><span class="o">.</span><span class="n">title</span><span class="p">(</span><span class="s1">&#39;Predictions vs True Values Over Test Set&#39;</span><span class="p">)</span>
+    <span class="n">plt</span><span class="o">.</span><span class="n">xlabel</span><span class="p">(</span><span class="s1">&#39;Sample Index&#39;</span><span class="p">)</span>
+    <span class="n">plt</span><span class="o">.</span><span class="n">ylabel</span><span class="p">(</span><span class="s1">&#39;Value&#39;</span><span class="p">)</span>
+    <span class="n">plt</span><span class="o">.</span><span class="n">legend</span><span class="p">()</span>
+    <span class="n">plt</span><span class="o">.</span><span class="n">grid</span><span class="p">(</span><span class="kc">True</span><span class="p">)</span>
+    
+    <span class="c1"># Regression plot (scatter plot)</span>
+    <span class="n">plt</span><span class="o">.</span><span class="n">subplot</span><span class="p">(</span><span class="mi">2</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">)</span>
+    <span class="n">plt</span><span class="o">.</span><span class="n">scatter</span><span class="p">(</span><span class="n">true_values</span><span class="p">,</span> <span class="n">predictions</span><span class="p">,</span> <span class="n">s</span><span class="o">=</span><span class="mi">20</span><span class="p">,</span> <span class="n">alpha</span><span class="o">=</span><span class="mf">0.5</span><span class="p">)</span>  <span class="c1"># Set point size to 20 and alpha to 0.5</span>
+
+    <span class="c1"># Add regression line</span>
+    <span class="n">z</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">polyfit</span><span class="p">(</span><span class="n">true_values</span><span class="p">,</span> <span class="n">predictions</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
+    <span class="n">p</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">poly1d</span><span class="p">(</span><span class="n">z</span><span class="p">)</span>
+    <span class="n">plt</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">true_values</span><span class="p">,</span> <span class="n">p</span><span class="p">(</span><span class="n">true_values</span><span class="p">),</span> 
+            <span class="s2">&quot;r--&quot;</span><span class="p">,</span> <span class="n">linewidth</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span> <span class="n">alpha</span><span class="o">=</span><span class="mf">0.8</span><span class="p">,</span> 
+            <span class="n">label</span><span class="o">=</span><span class="sa">f</span><span class="s1">&#39;Regression Line (R² = </span><span class="si">{</span><span class="n">np</span><span class="o">.</span><span class="n">corrcoef</span><span class="p">(</span><span class="n">true_values</span><span class="p">,</span><span class="w"> </span><span class="n">predictions</span><span class="p">)[</span><span class="mi">0</span><span class="p">,</span><span class="mi">1</span><span class="p">]</span><span class="o">**</span><span class="mi">2</span><span class="si">:</span><span class="s1">.4f</span><span class="si">}</span><span class="s1">)&#39;</span><span class="p">)</span>
+
+    <span class="c1"># Add perfect prediction line</span>
+    <span class="n">plt</span><span class="o">.</span><span class="n">plot</span><span class="p">([</span><span class="nb">min</span><span class="p">(</span><span class="n">true_values</span><span class="p">),</span> <span class="nb">max</span><span class="p">(</span><span class="n">true_values</span><span class="p">)],</span>
+            <span class="p">[</span><span class="nb">min</span><span class="p">(</span><span class="n">true_values</span><span class="p">),</span> <span class="nb">max</span><span class="p">(</span><span class="n">true_values</span><span class="p">)],</span>
+            <span class="s1">&#39;g--&#39;</span><span class="p">,</span> <span class="n">linewidth</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span> <span class="n">alpha</span><span class="o">=</span><span class="mf">0.8</span><span class="p">,</span> <span class="n">label</span><span class="o">=</span><span class="s1">&#39;Perfect Prediction&#39;</span><span class="p">)</span>
+
+    <span class="n">plt</span><span class="o">.</span><span class="n">title</span><span class="p">(</span><span class="s1">&#39;Prediction vs True Value Correlation&#39;</span><span class="p">)</span>
+    <span class="n">plt</span><span class="o">.</span><span class="n">xlabel</span><span class="p">(</span><span class="s1">&#39;True Values&#39;</span><span class="p">)</span>
+    <span class="n">plt</span><span class="o">.</span><span class="n">ylabel</span><span class="p">(</span><span class="s1">&#39;Predictions&#39;</span><span class="p">)</span>
+    <span class="n">plt</span><span class="o">.</span><span class="n">legend</span><span class="p">()</span>
+    <span class="n">plt</span><span class="o">.</span><span class="n">grid</span><span class="p">(</span><span class="kc">True</span><span class="p">)</span>
+    
+    <span class="n">plt</span><span class="o">.</span><span class="n">tight_layout</span><span class="p">()</span>
+    <span class="n">plt</span><span class="o">.</span><span class="n">show</span><span class="p">()</span>
+    
+    <span class="c1"># Print metrics</span>
+    <span class="n">rmse</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">mean</span><span class="p">((</span><span class="n">predictions</span> <span class="o">-</span> <span class="n">true_values</span><span class="p">)</span><span class="o">**</span><span class="mi">2</span><span class="p">))</span>
+    <span class="n">mae</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">abs</span><span class="p">(</span><span class="n">predictions</span> <span class="o">-</span> <span class="n">true_values</span><span class="p">))</span>
+    <span class="n">r2</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">corrcoef</span><span class="p">(</span><span class="n">predictions</span><span class="p">,</span> <span class="n">true_values</span><span class="p">)[</span><span class="mi">0</span><span class="p">,</span><span class="mi">1</span><span class="p">]</span><span class="o">**</span><span class="mi">2</span>
+    
+    <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;</span><span class="se">\n</span><span class="s2">Metrics:&quot;</span><span class="p">)</span>
+    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;RMSE: </span><span class="si">{</span><span class="n">rmse</span><span class="si">:</span><span class="s2">.4f</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;MAE: </span><span class="si">{</span><span class="n">mae</span><span class="si">:</span><span class="s2">.4f</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;R²: </span><span class="si">{</span><span class="n">r2</span><span class="si">:</span><span class="s2">.4f</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span></div>
+
+    
+<div class="viewcode-block" id="plot_training_history">
+<a class="viewcode-back" href="../api_reference.html#model_analysis_test_set.plot_training_history">[docs]</a>
+<span class="k">def</span> <span class="nf">plot_training_history</span><span class="p">(</span><span class="n">trainer</span><span class="p">,</span> <span class="n">figsize</span><span class="o">=</span><span class="p">(</span><span class="mi">10</span><span class="p">,</span> <span class="mi">6</span><span class="p">)):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Visualize training and validation loss history.</span>
+
+<span class="sd">    Creates a detailed visualization of model training progress, showing both training</span>
+<span class="sd">    and validation loss curves. Includes special handling for infinite values and</span>
+<span class="sd">    implements sophisticated styling for clear visualization.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    trainer : ModelTrainer</span>
+<span class="sd">        Trainer object containing training history. Must have the following attributes:</span>
+<span class="sd">        - validation_loss_history : list of float</span>
+<span class="sd">        - epoch_history : list of int</span>
+<span class="sd">        - training_loss_history : list of float</span>
+<span class="sd">    figsize : tuple of int, optional</span>
+<span class="sd">        Figure size in inches (width, height), by default (10, 6)</span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    None</span>
+<span class="sd">        Displays the plot using matplotlib&#39;s pyplot.</span>
+
+<span class="sd">    Notes</span>
+<span class="sd">    -----</span>
+<span class="sd">    Design Decisions:</span>
+<span class="sd">    1. Data Preprocessing:</span>
+<span class="sd">       - Converts infinite values to NaN to prevent plotting issues</span>
+<span class="sd">       - Maintains data integrity while handling numerical anomalies</span>
+<span class="sd">    </span>
+<span class="sd">    2. Visual Design:</span>
+<span class="sd">       - Implements markers for better epoch differentiation</span>
+<span class="sd">       - Customized line width and opacity for optimal readability</span>
+<span class="sd">    </span>
+<span class="sd">    3. Plot Elements:</span>
+<span class="sd">       - Dual line plot showing both training and validation metrics</span>
+<span class="sd">       - Legend with appropriately sized fonts</span>
+<span class="sd">       - Grid lines for easier metric comparison</span>
+<span class="sd">       - Padding added to title for better spacing</span>
+<span class="sd">    </span>
+<span class="sd">    4. Error Handling:</span>
+<span class="sd">       - Gracefully handles infinite values in loss histories</span>
+<span class="sd">       - Preserves plot functionality even with partial data corruption</span>
+
+<span class="sd">    See Also</span>
+<span class="sd">    --------</span>
+<span class="sd">    plot_predictions : Complementary function for visualizing model predictions.</span>
+<span class="sd">    ModelTrainer : Class that generates the training history used here.</span>
+
+<span class="sd">    Examples</span>
+<span class="sd">    --------</span>
+<span class="sd">    &gt;&gt;&gt; trainer = ModelTrainer(model, device)</span>
+<span class="sd">    &gt;&gt;&gt; # After training</span>
+<span class="sd">    &gt;&gt;&gt; plot_training_history(trainer, figsize=(12, 8))</span>
+<span class="sd">    &gt;&gt;&gt; plt.show()  # If not in interactive mode</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="c1"># Extract histories from trainer and convert inf to nan</span>
+    <span class="n">val_loss</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">trainer</span><span class="o">.</span><span class="n">validation_loss_history</span><span class="p">)</span>
+    <span class="n">epochs</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">trainer</span><span class="o">.</span><span class="n">epoch_history</span><span class="p">)</span>
+    <span class="n">train_loss</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">trainer</span><span class="o">.</span><span class="n">training_loss_history</span><span class="p">)</span>
+    
+    <span class="c1"># Convert inf to nan for all three arrays</span>
+    <span class="n">val_loss</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">isinf</span><span class="p">(</span><span class="n">val_loss</span><span class="p">),</span> <span class="n">np</span><span class="o">.</span><span class="n">nan</span><span class="p">,</span> <span class="n">val_loss</span><span class="p">)</span>
+    <span class="n">epochs</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">isinf</span><span class="p">(</span><span class="n">epochs</span><span class="p">),</span> <span class="n">np</span><span class="o">.</span><span class="n">nan</span><span class="p">,</span> <span class="n">epochs</span><span class="p">)</span>
+    <span class="n">train_loss</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">isinf</span><span class="p">(</span><span class="n">train_loss</span><span class="p">),</span> <span class="n">np</span><span class="o">.</span><span class="n">nan</span><span class="p">,</span> <span class="n">train_loss</span><span class="p">)</span>
+    
+    <span class="c1"># Set the style</span>
+    <span class="n">sns</span><span class="o">.</span><span class="n">set_style</span><span class="p">(</span><span class="s2">&quot;whitegrid&quot;</span><span class="p">)</span>
+    
+    <span class="c1"># Create figure</span>
+    <span class="n">plt</span><span class="o">.</span><span class="n">figure</span><span class="p">(</span><span class="n">figsize</span><span class="o">=</span><span class="n">figsize</span><span class="p">)</span>
+    
+    <span class="c1"># Create the line plots</span>
+    <span class="n">sns</span><span class="o">.</span><span class="n">lineplot</span><span class="p">(</span><span class="n">x</span><span class="o">=</span><span class="n">epochs</span><span class="p">,</span> <span class="n">y</span><span class="o">=</span><span class="n">train_loss</span><span class="p">,</span> <span class="n">label</span><span class="o">=</span><span class="s1">&#39;Training Loss&#39;</span><span class="p">,</span> 
+                <span class="n">marker</span><span class="o">=</span><span class="s1">&#39;o&#39;</span><span class="p">,</span> <span class="n">linewidth</span><span class="o">=</span><span class="mi">2</span><span class="p">)</span>
+    <span class="n">sns</span><span class="o">.</span><span class="n">lineplot</span><span class="p">(</span><span class="n">x</span><span class="o">=</span><span class="n">epochs</span><span class="p">,</span> <span class="n">y</span><span class="o">=</span><span class="n">val_loss</span><span class="p">,</span> <span class="n">label</span><span class="o">=</span><span class="s1">&#39;Validation Loss&#39;</span><span class="p">,</span> 
+                <span class="n">marker</span><span class="o">=</span><span class="s1">&#39;o&#39;</span><span class="p">,</span> <span class="n">linewidth</span><span class="o">=</span><span class="mi">2</span><span class="p">)</span>
+    
+    <span class="c1"># Customize the plot</span>
+    <span class="n">plt</span><span class="o">.</span><span class="n">title</span><span class="p">(</span><span class="s1">&#39;Training and Validation Loss Over Time&#39;</span><span class="p">,</span> <span class="n">fontsize</span><span class="o">=</span><span class="mi">14</span><span class="p">,</span> <span class="n">pad</span><span class="o">=</span><span class="mi">15</span><span class="p">)</span>
+    <span class="n">plt</span><span class="o">.</span><span class="n">xlabel</span><span class="p">(</span><span class="s1">&#39;Epoch&#39;</span><span class="p">,</span> <span class="n">fontsize</span><span class="o">=</span><span class="mi">12</span><span class="p">)</span>
+    <span class="n">plt</span><span class="o">.</span><span class="n">ylabel</span><span class="p">(</span><span class="s1">&#39;Loss&#39;</span><span class="p">,</span> <span class="n">fontsize</span><span class="o">=</span><span class="mi">12</span><span class="p">)</span>
+    <span class="n">plt</span><span class="o">.</span><span class="n">legend</span><span class="p">(</span><span class="n">fontsize</span><span class="o">=</span><span class="mi">10</span><span class="p">)</span>
+    
+    <span class="c1"># Adjust layout and display</span>
+    <span class="n">plt</span><span class="o">.</span><span class="n">tight_layout</span><span class="p">()</span>
+    <span class="n">plt</span><span class="o">.</span><span class="n">show</span><span class="p">()</span></div>
+
+
+<div class="viewcode-block" id="calculate_directional_accuracy">
+<a class="viewcode-back" href="../api_reference.html#model_analysis_test_set.calculate_directional_accuracy">[docs]</a>
+<span class="k">def</span> <span class="nf">calculate_directional_accuracy</span><span class="p">(</span><span class="n">test_data</span><span class="p">,</span> <span class="n">forecast_results</span><span class="p">,</span> <span class="n">sequence_size</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Calculate directional accuracy of predictions by forecast day and overall.</span>
+<span class="sd">    </span>
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    test_data : pandas.DataFrame</span>
+<span class="sd">        DataFrame containing actual price data.</span>
+<span class="sd">    forecast_results : dict</span>
+<span class="sd">        Dictionary containing forecast results.</span>
+<span class="sd">    sequence_size : int</span>
+<span class="sd">        Integer representing the sequence size used in the model.</span>
+<span class="sd">    </span>
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    dict</span>
+<span class="sd">        Dictionary containing accuracy metrics and detailed results:</span>
+<span class="sd">        </span>
+<span class="sd">        - accuracy_by_day : pandas.DataFrame</span>
+<span class="sd">            DataFrame with daily accuracy metrics.</span>
+<span class="sd">        - overall_accuracy : float</span>
+<span class="sd">            Overall accuracy percentage.</span>
+<span class="sd">        - detailed_metrics : dict</span>
+<span class="sd">            Dictionary with additional performance metrics.</span>
+<span class="sd">        - detailed_results : pandas.DataFrame</span>
+<span class="sd">            DataFrame with prediction details.</span>
+<span class="sd">            </span>
+<span class="sd">    Notes</span>
+<span class="sd">    -----</span>
+<span class="sd">    This function calculates the accuracy of predicted price directions (up or down)</span>
+<span class="sd">    compared to actual price movements. It performs analysis for each forecast day</span>
+<span class="sd">    and calculates aggregate metrics across all predictions.</span>
+<span class="sd">    </span>
+<span class="sd">    The function creates a comprehensive set of metrics including:</span>
+<span class="sd">    - Direction prediction accuracy (overall and by day)</span>
+<span class="sd">    - Separate metrics for upward and downward movement predictions</span>
+<span class="sd">    - Error measurements (RMSE, MAPE)</span>
+<span class="sd">    - Direction bias analysis</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">y_test_df</span> <span class="o">=</span> <span class="n">test_data</span><span class="p">[</span><span class="s1">&#39;Price&#39;</span><span class="p">][</span><span class="n">sequence_size</span><span class="p">:]</span>
+    
+    <span class="c1"># Create accuracy plot data more efficiently</span>
+    <span class="n">accuracy_plot_data</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="k">for</span> <span class="n">start_index</span><span class="p">,</span> <span class="n">forecast</span> <span class="ow">in</span> <span class="n">forecast_results</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+        <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">mean</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">forecast</span><span class="p">[</span><span class="s2">&quot;mean&quot;</span><span class="p">]):</span>
+            <span class="n">accuracy_plot_data</span><span class="o">.</span><span class="n">append</span><span class="p">({</span>
+                <span class="s2">&quot;day_out&quot;</span><span class="p">:</span> <span class="n">i</span> <span class="o">+</span> <span class="mi">1</span><span class="p">,</span>
+                <span class="s2">&quot;start_idx&quot;</span><span class="p">:</span> <span class="n">start_index</span><span class="p">,</span>
+                <span class="s2">&quot;valid_idx&quot;</span><span class="p">:</span> <span class="n">start_index</span> <span class="o">+</span> <span class="n">i</span><span class="p">,</span>
+                <span class="s2">&quot;end_idx&quot;</span><span class="p">:</span> <span class="n">start_index</span> <span class="o">+</span> <span class="nb">len</span><span class="p">(</span><span class="n">forecast</span><span class="p">[</span><span class="s2">&quot;mean&quot;</span><span class="p">])</span> <span class="o">-</span> <span class="mi">1</span><span class="p">,</span>
+                <span class="s2">&quot;predicted_price&quot;</span><span class="p">:</span> <span class="n">mean</span>
+            <span class="p">})</span>
+    
+    <span class="n">accuracy_plot_df</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">(</span><span class="n">accuracy_plot_data</span><span class="p">)</span>
+    
+    <span class="c1"># Create filtered test data with vectorized operations</span>
+    <span class="n">valid_indices</span> <span class="o">=</span> <span class="n">accuracy_plot_df</span><span class="p">[</span><span class="s2">&quot;valid_idx&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">values</span>
+    <span class="n">y_test_filtered</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">({</span>
+        <span class="s2">&quot;actual_price&quot;</span><span class="p">:</span> <span class="n">y_test_df</span><span class="o">.</span><span class="n">iloc</span><span class="p">[</span><span class="n">valid_indices</span><span class="p">]</span><span class="o">.</span><span class="n">values</span><span class="p">,</span>
+        <span class="s2">&quot;day_out&quot;</span><span class="p">:</span> <span class="n">accuracy_plot_df</span><span class="p">[</span><span class="s2">&quot;day_out&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">values</span><span class="p">,</span>
+        <span class="s2">&quot;valid_idx&quot;</span><span class="p">:</span> <span class="n">valid_indices</span>
+    <span class="p">})</span>
+    
+    <span class="c1"># Add previous day&#39;s actual price</span>
+    <span class="n">y_test_filtered</span><span class="p">[</span><span class="s2">&quot;prev_price&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">y_test_df</span><span class="o">.</span><span class="n">iloc</span><span class="p">[</span><span class="n">y_test_filtered</span><span class="p">[</span><span class="s2">&quot;valid_idx&quot;</span><span class="p">]</span> <span class="o">-</span> <span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">values</span>
+    
+    <span class="c1"># Calculate slopes</span>
+    <span class="n">y_test_filtered</span><span class="p">[</span><span class="s2">&quot;slope_actual&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sign</span><span class="p">(</span><span class="n">y_test_filtered</span><span class="p">[</span><span class="s2">&quot;actual_price&quot;</span><span class="p">]</span> <span class="o">-</span> <span class="n">y_test_filtered</span><span class="p">[</span><span class="s2">&quot;prev_price&quot;</span><span class="p">])</span>
+    <span class="n">accuracy_plot_df</span><span class="p">[</span><span class="s2">&quot;slope_predicted&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sign</span><span class="p">(</span><span class="n">accuracy_plot_df</span><span class="p">[</span><span class="s2">&quot;predicted_price&quot;</span><span class="p">]</span> <span class="o">-</span> <span class="n">y_test_filtered</span><span class="p">[</span><span class="s2">&quot;prev_price&quot;</span><span class="p">])</span>
+    
+    <span class="c1"># Merge dataframes</span>
+    <span class="n">merged_df</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">merge</span><span class="p">(</span>
+        <span class="n">y_test_filtered</span><span class="p">,</span>
+        <span class="n">accuracy_plot_df</span><span class="p">[[</span><span class="s2">&quot;day_out&quot;</span><span class="p">,</span> <span class="s2">&quot;slope_predicted&quot;</span><span class="p">,</span> <span class="s2">&quot;predicted_price&quot;</span><span class="p">]],</span>
+        <span class="n">on</span><span class="o">=</span><span class="s2">&quot;day_out&quot;</span>
+    <span class="p">)</span>
+    
+    <span class="c1"># Calculate detailed metrics by day</span>
+    <span class="n">accuracy_by_day</span> <span class="o">=</span> <span class="n">merged_df</span><span class="o">.</span><span class="n">groupby</span><span class="p">(</span><span class="s2">&quot;day_out&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">apply</span><span class="p">(</span>
+        <span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="n">pd</span><span class="o">.</span><span class="n">Series</span><span class="p">({</span>
+            <span class="s1">&#39;correct_predictions&#39;</span><span class="p">:</span> <span class="p">(</span><span class="n">x</span><span class="p">[</span><span class="s2">&quot;slope_actual&quot;</span><span class="p">]</span> <span class="o">==</span> <span class="n">x</span><span class="p">[</span><span class="s2">&quot;slope_predicted&quot;</span><span class="p">])</span><span class="o">.</span><span class="n">sum</span><span class="p">(),</span>
+            <span class="s1">&#39;total_predictions&#39;</span><span class="p">:</span> <span class="nb">len</span><span class="p">(</span><span class="n">x</span><span class="p">),</span>
+            <span class="s1">&#39;accuracy_percentage&#39;</span><span class="p">:</span> <span class="p">(</span><span class="n">x</span><span class="p">[</span><span class="s2">&quot;slope_actual&quot;</span><span class="p">]</span> <span class="o">==</span> <span class="n">x</span><span class="p">[</span><span class="s2">&quot;slope_predicted&quot;</span><span class="p">])</span><span class="o">.</span><span class="n">mean</span><span class="p">()</span> <span class="o">*</span> <span class="mi">100</span><span class="p">,</span>
+            <span class="s1">&#39;upward_accuracy&#39;</span><span class="p">:</span> <span class="p">(</span>
+                <span class="p">(</span><span class="n">x</span><span class="p">[</span><span class="s2">&quot;slope_actual&quot;</span><span class="p">]</span> <span class="o">==</span> <span class="mi">1</span><span class="p">)</span> <span class="o">&amp;</span> <span class="p">(</span><span class="n">x</span><span class="p">[</span><span class="s2">&quot;slope_predicted&quot;</span><span class="p">]</span> <span class="o">==</span> <span class="mi">1</span><span class="p">)</span>
+            <span class="p">)</span><span class="o">.</span><span class="n">sum</span><span class="p">()</span> <span class="o">/</span> <span class="p">(</span><span class="n">x</span><span class="p">[</span><span class="s2">&quot;slope_actual&quot;</span><span class="p">]</span> <span class="o">==</span> <span class="mi">1</span><span class="p">)</span><span class="o">.</span><span class="n">sum</span><span class="p">()</span> <span class="o">*</span> <span class="mi">100</span> <span class="k">if</span> <span class="p">(</span><span class="n">x</span><span class="p">[</span><span class="s2">&quot;slope_actual&quot;</span><span class="p">]</span> <span class="o">==</span> <span class="mi">1</span><span class="p">)</span><span class="o">.</span><span class="n">sum</span><span class="p">()</span> <span class="o">&gt;</span> <span class="mi">0</span> <span class="k">else</span> <span class="mi">0</span><span class="p">,</span>
+            <span class="s1">&#39;downward_accuracy&#39;</span><span class="p">:</span> <span class="p">(</span>
+                <span class="p">(</span><span class="n">x</span><span class="p">[</span><span class="s2">&quot;slope_actual&quot;</span><span class="p">]</span> <span class="o">==</span> <span class="o">-</span><span class="mi">1</span><span class="p">)</span> <span class="o">&amp;</span> <span class="p">(</span><span class="n">x</span><span class="p">[</span><span class="s2">&quot;slope_predicted&quot;</span><span class="p">]</span> <span class="o">==</span> <span class="o">-</span><span class="mi">1</span><span class="p">)</span>
+            <span class="p">)</span><span class="o">.</span><span class="n">sum</span><span class="p">()</span> <span class="o">/</span> <span class="p">(</span><span class="n">x</span><span class="p">[</span><span class="s2">&quot;slope_actual&quot;</span><span class="p">]</span> <span class="o">==</span> <span class="o">-</span><span class="mi">1</span><span class="p">)</span><span class="o">.</span><span class="n">sum</span><span class="p">()</span> <span class="o">*</span> <span class="mi">100</span> <span class="k">if</span> <span class="p">(</span><span class="n">x</span><span class="p">[</span><span class="s2">&quot;slope_actual&quot;</span><span class="p">]</span> <span class="o">==</span> <span class="o">-</span><span class="mi">1</span><span class="p">)</span><span class="o">.</span><span class="n">sum</span><span class="p">()</span> <span class="o">&gt;</span> <span class="mi">0</span> <span class="k">else</span> <span class="mi">0</span><span class="p">,</span>
+            <span class="s1">&#39;avg_prediction_error&#39;</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">abs</span><span class="p">(</span><span class="n">x</span><span class="p">[</span><span class="s2">&quot;actual_price&quot;</span><span class="p">]</span> <span class="o">-</span> <span class="n">x</span><span class="p">[</span><span class="s2">&quot;predicted_price&quot;</span><span class="p">])</span><span class="o">.</span><span class="n">mean</span><span class="p">()</span>
+        <span class="p">})</span>
+    <span class="p">)</span><span class="o">.</span><span class="n">round</span><span class="p">(</span><span class="mi">2</span><span class="p">)</span>
+    
+    <span class="c1"># Calculate overall metrics</span>
+    <span class="n">correct_predictions</span> <span class="o">=</span> <span class="p">(</span><span class="n">merged_df</span><span class="p">[</span><span class="s2">&quot;slope_actual&quot;</span><span class="p">]</span> <span class="o">==</span> <span class="n">merged_df</span><span class="p">[</span><span class="s2">&quot;slope_predicted&quot;</span><span class="p">])</span><span class="o">.</span><span class="n">sum</span><span class="p">()</span>
+    <span class="n">total_predictions</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">merged_df</span><span class="p">)</span>
+    <span class="n">overall_accuracy</span> <span class="o">=</span> <span class="p">(</span><span class="n">correct_predictions</span> <span class="o">/</span> <span class="n">total_predictions</span><span class="p">)</span> <span class="o">*</span> <span class="mi">100</span>
+    
+    <span class="c1"># Additional overall metrics</span>
+    <span class="n">detailed_metrics</span> <span class="o">=</span> <span class="p">{</span>
+        <span class="s1">&#39;overall_accuracy&#39;</span><span class="p">:</span> <span class="n">overall_accuracy</span><span class="p">,</span>
+        <span class="s1">&#39;total_predictions&#39;</span><span class="p">:</span> <span class="n">total_predictions</span><span class="p">,</span>
+        <span class="s1">&#39;correct_predictions&#39;</span><span class="p">:</span> <span class="n">correct_predictions</span><span class="p">,</span>
+        <span class="s1">&#39;mape&#39;</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">abs</span><span class="p">((</span><span class="n">merged_df</span><span class="p">[</span><span class="s2">&quot;actual_price&quot;</span><span class="p">]</span> <span class="o">-</span> <span class="n">merged_df</span><span class="p">[</span><span class="s2">&quot;predicted_price&quot;</span><span class="p">])</span> <span class="o">/</span> <span class="n">merged_df</span><span class="p">[</span><span class="s2">&quot;actual_price&quot;</span><span class="p">]))</span> <span class="o">*</span> <span class="mi">100</span><span class="p">,</span>
+        <span class="s1">&#39;rmse&#39;</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">mean</span><span class="p">((</span><span class="n">merged_df</span><span class="p">[</span><span class="s2">&quot;actual_price&quot;</span><span class="p">]</span> <span class="o">-</span> <span class="n">merged_df</span><span class="p">[</span><span class="s2">&quot;predicted_price&quot;</span><span class="p">])</span><span class="o">**</span><span class="mi">2</span><span class="p">)),</span>
+        <span class="s1">&#39;direction_bias&#39;</span><span class="p">:</span> <span class="p">(</span><span class="n">merged_df</span><span class="p">[</span><span class="s2">&quot;slope_predicted&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">mean</span><span class="p">()</span> <span class="o">-</span> <span class="n">merged_df</span><span class="p">[</span><span class="s2">&quot;slope_actual&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">mean</span><span class="p">())</span>
+    <span class="p">}</span>
+    
+    <span class="k">return</span> <span class="p">{</span>
+        <span class="s1">&#39;accuracy_by_day&#39;</span><span class="p">:</span> <span class="n">accuracy_by_day</span><span class="p">,</span>
+        <span class="s1">&#39;overall_accuracy&#39;</span><span class="p">:</span> <span class="n">overall_accuracy</span><span class="p">,</span>
+        <span class="s1">&#39;detailed_metrics&#39;</span><span class="p">:</span> <span class="n">detailed_metrics</span><span class="p">,</span>
+        <span class="s1">&#39;detailed_results&#39;</span><span class="p">:</span> <span class="n">merged_df</span>
+    <span class="p">}</span></div>
+
+
+<div class="viewcode-block" id="plot_accuracy_metrics">
+<a class="viewcode-back" href="../api_reference.html#model_analysis_test_set.plot_accuracy_metrics">[docs]</a>
+<span class="k">def</span> <span class="nf">plot_accuracy_metrics</span><span class="p">(</span><span class="n">accuracy_by_day</span><span class="p">,</span> <span class="n">detailed_metrics</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Create comprehensive visualization of accuracy metrics.</span>
+<span class="sd">    </span>
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    accuracy_by_day : pandas.DataFrame</span>
+<span class="sd">        DataFrame containing accuracy metrics by day.</span>
+<span class="sd">    detailed_metrics : dict</span>
+<span class="sd">        Dictionary containing overall performance metrics.</span>
+<span class="sd">        </span>
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    None</span>
+<span class="sd">        Displays visualization plots using matplotlib.</span>
+<span class="sd">        </span>
+<span class="sd">    Notes</span>
+<span class="sd">    -----</span>
+<span class="sd">    This function creates a three-panel visualization showing:</span>
+<span class="sd">    1. Accuracy percentage by forecast day</span>
+<span class="sd">    2. Directional accuracy for upward vs downward movements</span>
+<span class="sd">    3. Average prediction error by day</span>
+<span class="sd">    </span>
+<span class="sd">    The function also prints additional metrics including MAPE, RMSE,</span>
+<span class="sd">    and direction bias for comprehensive model evaluation.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="c1"># Set the style</span>
+    <span class="n">sns</span><span class="o">.</span><span class="n">set_style</span><span class="p">(</span><span class="s2">&quot;whitegrid&quot;</span><span class="p">)</span>
+    <span class="n">plt</span><span class="o">.</span><span class="n">figure</span><span class="p">(</span><span class="n">figsize</span><span class="o">=</span><span class="p">(</span><span class="mi">15</span><span class="p">,</span> <span class="mi">12</span><span class="p">))</span>
+    
+    <span class="c1"># Plot 1: Accuracy by Day</span>
+    <span class="n">plt</span><span class="o">.</span><span class="n">subplot</span><span class="p">(</span><span class="mi">3</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
+    <span class="n">sns</span><span class="o">.</span><span class="n">barplot</span><span class="p">(</span>
+        <span class="n">data</span><span class="o">=</span><span class="n">accuracy_by_day</span><span class="o">.</span><span class="n">reset_index</span><span class="p">(),</span>
+        <span class="n">x</span><span class="o">=</span><span class="s1">&#39;day_out&#39;</span><span class="p">,</span>
+        <span class="n">y</span><span class="o">=</span><span class="s1">&#39;accuracy_percentage&#39;</span><span class="p">,</span>
+        <span class="n">color</span><span class="o">=</span><span class="s1">&#39;skyblue&#39;</span>
+    <span class="p">)</span>
+    <span class="n">plt</span><span class="o">.</span><span class="n">title</span><span class="p">(</span><span class="s1">&#39;Prediction Accuracy by Day&#39;</span><span class="p">,</span> <span class="n">pad</span><span class="o">=</span><span class="mi">20</span><span class="p">)</span>
+    <span class="n">plt</span><span class="o">.</span><span class="n">xlabel</span><span class="p">(</span><span class="s1">&#39;Days Out&#39;</span><span class="p">)</span>
+    <span class="n">plt</span><span class="o">.</span><span class="n">ylabel</span><span class="p">(</span><span class="s1">&#39;Accuracy (%)&#39;</span><span class="p">)</span>
+    <span class="n">plt</span><span class="o">.</span><span class="n">axhline</span><span class="p">(</span><span class="n">y</span><span class="o">=</span><span class="n">detailed_metrics</span><span class="p">[</span><span class="s1">&#39;overall_accuracy&#39;</span><span class="p">],</span> <span class="n">color</span><span class="o">=</span><span class="s1">&#39;red&#39;</span><span class="p">,</span> <span class="n">linestyle</span><span class="o">=</span><span class="s1">&#39;--&#39;</span><span class="p">,</span> 
+                <span class="n">label</span><span class="o">=</span><span class="sa">f</span><span class="s1">&#39;Overall Accuracy: </span><span class="si">{</span><span class="n">detailed_metrics</span><span class="p">[</span><span class="s2">&quot;overall_accuracy&quot;</span><span class="p">]</span><span class="si">:</span><span class="s1">.1f</span><span class="si">}</span><span class="s1">%&#39;</span><span class="p">)</span>
+    <span class="n">plt</span><span class="o">.</span><span class="n">legend</span><span class="p">()</span>
+
+    <span class="c1"># Plot 2: Directional Accuracy (Upward vs Downward)</span>
+    <span class="n">plt</span><span class="o">.</span><span class="n">subplot</span><span class="p">(</span><span class="mi">3</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">)</span>
+    <span class="n">direction_data</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">melt</span><span class="p">(</span>
+        <span class="n">accuracy_by_day</span><span class="o">.</span><span class="n">reset_index</span><span class="p">(),</span>
+        <span class="n">id_vars</span><span class="o">=</span><span class="p">[</span><span class="s1">&#39;day_out&#39;</span><span class="p">],</span>
+        <span class="n">value_vars</span><span class="o">=</span><span class="p">[</span><span class="s1">&#39;upward_accuracy&#39;</span><span class="p">,</span> <span class="s1">&#39;downward_accuracy&#39;</span><span class="p">],</span>
+        <span class="n">var_name</span><span class="o">=</span><span class="s1">&#39;direction&#39;</span><span class="p">,</span>
+        <span class="n">value_name</span><span class="o">=</span><span class="s1">&#39;accuracy&#39;</span>
+    <span class="p">)</span>
+    <span class="n">sns</span><span class="o">.</span><span class="n">lineplot</span><span class="p">(</span>
+        <span class="n">data</span><span class="o">=</span><span class="n">direction_data</span><span class="p">,</span>
+        <span class="n">x</span><span class="o">=</span><span class="s1">&#39;day_out&#39;</span><span class="p">,</span>
+        <span class="n">y</span><span class="o">=</span><span class="s1">&#39;accuracy&#39;</span><span class="p">,</span>
+        <span class="n">hue</span><span class="o">=</span><span class="s1">&#39;direction&#39;</span><span class="p">,</span>
+        <span class="n">marker</span><span class="o">=</span><span class="s1">&#39;o&#39;</span>
+    <span class="p">)</span>
+    <span class="n">plt</span><span class="o">.</span><span class="n">title</span><span class="p">(</span><span class="s1">&#39;Upward vs Downward Movement Prediction Accuracy&#39;</span><span class="p">,</span> <span class="n">pad</span><span class="o">=</span><span class="mi">20</span><span class="p">)</span>
+    <span class="n">plt</span><span class="o">.</span><span class="n">xlabel</span><span class="p">(</span><span class="s1">&#39;Days Out&#39;</span><span class="p">)</span>
+    <span class="n">plt</span><span class="o">.</span><span class="n">ylabel</span><span class="p">(</span><span class="s1">&#39;Accuracy (%)&#39;</span><span class="p">)</span>
+
+    <span class="c1"># Plot 3: Prediction Error</span>
+    <span class="n">plt</span><span class="o">.</span><span class="n">subplot</span><span class="p">(</span><span class="mi">3</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">3</span><span class="p">)</span>
+    <span class="n">sns</span><span class="o">.</span><span class="n">lineplot</span><span class="p">(</span>
+        <span class="n">data</span><span class="o">=</span><span class="n">accuracy_by_day</span><span class="o">.</span><span class="n">reset_index</span><span class="p">(),</span>
+        <span class="n">x</span><span class="o">=</span><span class="s1">&#39;day_out&#39;</span><span class="p">,</span>
+        <span class="n">y</span><span class="o">=</span><span class="s1">&#39;avg_prediction_error&#39;</span><span class="p">,</span>
+        <span class="n">color</span><span class="o">=</span><span class="s1">&#39;green&#39;</span><span class="p">,</span>
+        <span class="n">marker</span><span class="o">=</span><span class="s1">&#39;o&#39;</span>
+    <span class="p">)</span>
+    <span class="n">plt</span><span class="o">.</span><span class="n">title</span><span class="p">(</span><span class="s1">&#39;Average Prediction Error by Day&#39;</span><span class="p">,</span> <span class="n">pad</span><span class="o">=</span><span class="mi">20</span><span class="p">)</span>
+    <span class="n">plt</span><span class="o">.</span><span class="n">xlabel</span><span class="p">(</span><span class="s1">&#39;Days Out&#39;</span><span class="p">)</span>
+    <span class="n">plt</span><span class="o">.</span><span class="n">ylabel</span><span class="p">(</span><span class="s1">&#39;Average Absolute Error&#39;</span><span class="p">)</span>
+    
+    <span class="n">plt</span><span class="o">.</span><span class="n">tight_layout</span><span class="p">()</span>
+    <span class="n">plt</span><span class="o">.</span><span class="n">show</span><span class="p">()</span>
+
+    <span class="c1"># Print additional metrics</span>
+    <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;</span><span class="se">\n</span><span class="s2">Detailed Performance Metrics:&quot;</span><span class="p">)</span>
+    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;MAPE: </span><span class="si">{</span><span class="n">detailed_metrics</span><span class="p">[</span><span class="s1">&#39;mape&#39;</span><span class="p">]</span><span class="si">:</span><span class="s2">.2f</span><span class="si">}</span><span class="s2">%&quot;</span><span class="p">)</span>
+    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;RMSE: </span><span class="si">{</span><span class="n">detailed_metrics</span><span class="p">[</span><span class="s1">&#39;rmse&#39;</span><span class="p">]</span><span class="si">:</span><span class="s2">.2f</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Direction Bias: </span><span class="si">{</span><span class="n">detailed_metrics</span><span class="p">[</span><span class="s1">&#39;direction_bias&#39;</span><span class="p">]</span><span class="si">:</span><span class="s2">.3f</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="bland_altman_plot">
+<a class="viewcode-back" href="../api_reference.html#model_analysis_test_set.bland_altman_plot">[docs]</a>
+<span class="k">def</span> <span class="nf">bland_altman_plot</span><span class="p">(</span><span class="n">sequence_size</span><span class="p">,</span> <span class="n">forecast_results</span><span class="p">,</span> <span class="n">test_data</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Creates a Bland-Altman plot comparing actual vs predicted prices,</span>
+<span class="sd">    with points colored by prediction horizon (days out).</span>
+<span class="sd">    </span>
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    sequence_size : int</span>
+<span class="sd">        Integer representing the sequence size used in the model.</span>
+<span class="sd">    forecast_results : dict</span>
+<span class="sd">        Dictionary containing forecast results.</span>
+<span class="sd">    test_data : pandas.DataFrame</span>
+<span class="sd">        DataFrame containing actual price data.</span>
+<span class="sd">        </span>
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    None</span>
+<span class="sd">        Displays Bland-Altman plot using matplotlib.</span>
+<span class="sd">        </span>
+<span class="sd">    Notes</span>
+<span class="sd">    -----</span>
+<span class="sd">    The Bland-Altman plot (or difference plot) is used to visualize the agreement</span>
+<span class="sd">    between two measurement methods. In this context, it shows the difference between</span>
+<span class="sd">    predicted and actual prices against their mean, providing insights into systematic</span>
+<span class="sd">    bias and limits of agreement.</span>
+<span class="sd">    </span>
+<span class="sd">    Points are colored by forecast horizon (days out) to show how prediction</span>
+<span class="sd">    accuracy changes with increasing forecast distance. The function also prints</span>
+<span class="sd">    statistical information about mean difference and limits of agreement.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">y_test_df</span> <span class="o">=</span> <span class="n">test_data</span><span class="p">[</span><span class="s1">&#39;Price&#39;</span><span class="p">][</span><span class="n">sequence_size</span><span class="p">:]</span>
+    
+    <span class="c1"># Prepare data</span>
+    <span class="n">accuracy_plot_data</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="k">for</span> <span class="n">start_index</span> <span class="ow">in</span> <span class="n">forecast_results</span><span class="p">:</span>
+        <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">mean</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">forecast_results</span><span class="p">[</span><span class="n">start_index</span><span class="p">][</span><span class="s2">&quot;mean&quot;</span><span class="p">]):</span>
+            <span class="n">accuracy_plot_data</span><span class="o">.</span><span class="n">append</span><span class="p">({</span>
+                <span class="s2">&quot;day_out&quot;</span><span class="p">:</span> <span class="n">i</span><span class="o">+</span><span class="mi">1</span><span class="p">,</span>
+                <span class="s2">&quot;start_idx&quot;</span><span class="p">:</span> <span class="n">start_index</span><span class="p">,</span>
+                <span class="s2">&quot;valid_idx&quot;</span><span class="p">:</span> <span class="n">start_index</span> <span class="o">+</span> <span class="n">i</span><span class="p">,</span>
+                <span class="s2">&quot;end_idx&quot;</span><span class="p">:</span> <span class="n">start_index</span> <span class="o">+</span> <span class="nb">len</span><span class="p">(</span><span class="n">forecast_results</span><span class="p">[</span><span class="n">start_index</span><span class="p">][</span><span class="s2">&quot;mean&quot;</span><span class="p">])</span> <span class="o">-</span> <span class="mi">1</span><span class="p">,</span>
+                <span class="s2">&quot;means&quot;</span><span class="p">:</span> <span class="n">mean</span>
+            <span class="p">})</span>
+    
+    <span class="n">accuracy_plot_df</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">(</span><span class="n">accuracy_plot_data</span><span class="p">)</span>
+    
+    <span class="c1"># Get actual values</span>
+    <span class="n">y_test_filtered_list</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">val_idx</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">accuracy_plot_df</span><span class="p">[</span><span class="s2">&quot;valid_idx&quot;</span><span class="p">]):</span>
+        <span class="n">y_test_filtered_list</span><span class="o">.</span><span class="n">append</span><span class="p">({</span>
+            <span class="s2">&quot;Price&quot;</span><span class="p">:</span> <span class="n">y_test_df</span><span class="o">.</span><span class="n">iloc</span><span class="p">[</span><span class="n">val_idx</span><span class="p">],</span>
+            <span class="s2">&quot;day_out&quot;</span><span class="p">:</span> <span class="n">accuracy_plot_df</span><span class="o">.</span><span class="n">iloc</span><span class="p">[</span><span class="n">i</span><span class="p">][</span><span class="s2">&quot;day_out&quot;</span><span class="p">]</span>
+        <span class="p">})</span>
+    
+    <span class="n">y_test_filtered</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">(</span><span class="n">y_test_filtered_list</span><span class="p">)</span>
+    
+    <span class="c1"># Calculate Bland-Altman metrics</span>
+    <span class="n">differences</span> <span class="o">=</span> <span class="n">accuracy_plot_df</span><span class="p">[</span><span class="s1">&#39;means&#39;</span><span class="p">]</span> <span class="o">-</span> <span class="n">y_test_filtered</span><span class="p">[</span><span class="s1">&#39;Price&#39;</span><span class="p">]</span>
+    <span class="n">means</span> <span class="o">=</span> <span class="p">(</span><span class="n">accuracy_plot_df</span><span class="p">[</span><span class="s1">&#39;means&#39;</span><span class="p">]</span> <span class="o">+</span> <span class="n">y_test_filtered</span><span class="p">[</span><span class="s1">&#39;Price&#39;</span><span class="p">])</span> <span class="o">/</span> <span class="mi">2</span>
+    
+    <span class="c1"># Calculate limits of agreement</span>
+    <span class="n">mean_diff</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">differences</span><span class="p">)</span>
+    <span class="n">std_diff</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">std</span><span class="p">(</span><span class="n">differences</span><span class="p">)</span>
+    <span class="n">upper_limit</span> <span class="o">=</span> <span class="n">mean_diff</span> <span class="o">+</span> <span class="mf">1.96</span> <span class="o">*</span> <span class="n">std_diff</span>
+    <span class="n">lower_limit</span> <span class="o">=</span> <span class="n">mean_diff</span> <span class="o">-</span> <span class="mf">1.96</span> <span class="o">*</span> <span class="n">std_diff</span>
+    
+    <span class="c1"># Create the plot</span>
+    <span class="n">plt</span><span class="o">.</span><span class="n">figure</span><span class="p">(</span><span class="n">figsize</span><span class="o">=</span><span class="p">(</span><span class="mi">10</span><span class="p">,</span> <span class="mi">6</span><span class="p">))</span>
+    
+    <span class="c1"># Normalize &#39;day_out&#39; for colormap</span>
+    <span class="n">norm</span> <span class="o">=</span> <span class="n">plt</span><span class="o">.</span><span class="n">Normalize</span><span class="p">(</span><span class="n">accuracy_plot_df</span><span class="p">[</span><span class="s1">&#39;day_out&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">min</span><span class="p">(),</span> <span class="n">accuracy_plot_df</span><span class="p">[</span><span class="s1">&#39;day_out&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">max</span><span class="p">())</span>
+    <span class="n">cmap</span> <span class="o">=</span> <span class="n">cm</span><span class="o">.</span><span class="n">viridis</span>
+    
+    <span class="c1"># Scatter plot with color based on &#39;day_out&#39;</span>
+    <span class="n">scatter</span> <span class="o">=</span> <span class="n">plt</span><span class="o">.</span><span class="n">scatter</span><span class="p">(</span><span class="n">means</span><span class="p">,</span> 
+                         <span class="n">differences</span><span class="p">,</span>
+                         <span class="n">c</span><span class="o">=</span><span class="n">accuracy_plot_df</span><span class="p">[</span><span class="s1">&#39;day_out&#39;</span><span class="p">],</span>
+                         <span class="n">cmap</span><span class="o">=</span><span class="n">cmap</span><span class="p">,</span>
+                         <span class="n">alpha</span><span class="o">=</span><span class="mf">0.9</span><span class="p">,</span>
+                         <span class="n">label</span><span class="o">=</span><span class="s1">&#39;Differences&#39;</span><span class="p">)</span>
+    
+    <span class="c1"># Add mean and limits of agreement lines</span>
+    <span class="n">plt</span><span class="o">.</span><span class="n">axhline</span><span class="p">(</span><span class="n">y</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">color</span><span class="o">=</span><span class="s1">&#39;black&#39;</span><span class="p">,</span> <span class="n">linestyle</span><span class="o">=</span><span class="s1">&#39;-&#39;</span><span class="p">,</span> <span class="n">label</span><span class="o">=</span><span class="s1">&#39;No difference&#39;</span><span class="p">)</span>
+    <span class="n">plt</span><span class="o">.</span><span class="n">axhline</span><span class="p">(</span><span class="n">y</span><span class="o">=</span><span class="n">mean_diff</span><span class="p">,</span> <span class="n">color</span><span class="o">=</span><span class="s1">&#39;red&#39;</span><span class="p">,</span> <span class="n">linestyle</span><span class="o">=</span><span class="s1">&#39;--&#39;</span><span class="p">,</span> <span class="n">label</span><span class="o">=</span><span class="s1">&#39;Mean Difference&#39;</span><span class="p">)</span>
+    <span class="n">plt</span><span class="o">.</span><span class="n">axhline</span><span class="p">(</span><span class="n">y</span><span class="o">=</span><span class="n">upper_limit</span><span class="p">,</span> <span class="n">color</span><span class="o">=</span><span class="s1">&#39;gray&#39;</span><span class="p">,</span> <span class="n">linestyle</span><span class="o">=</span><span class="s1">&#39;:&#39;</span><span class="p">,</span> <span class="n">label</span><span class="o">=</span><span class="s1">&#39;+1.96 SD&#39;</span><span class="p">)</span>
+    <span class="n">plt</span><span class="o">.</span><span class="n">axhline</span><span class="p">(</span><span class="n">y</span><span class="o">=</span><span class="n">lower_limit</span><span class="p">,</span> <span class="n">color</span><span class="o">=</span><span class="s1">&#39;gray&#39;</span><span class="p">,</span> <span class="n">linestyle</span><span class="o">=</span><span class="s1">&#39;:&#39;</span><span class="p">,</span> <span class="n">label</span><span class="o">=</span><span class="s1">&#39;-1.96 SD&#39;</span><span class="p">)</span>
+    
+    <span class="n">plt</span><span class="o">.</span><span class="n">xlabel</span><span class="p">(</span><span class="s1">&#39;Mean of Actual and Predicted Prices&#39;</span><span class="p">)</span>
+    <span class="n">plt</span><span class="o">.</span><span class="n">ylabel</span><span class="p">(</span><span class="s1">&#39;Difference (Predicted - Actual)&#39;</span><span class="p">)</span>
+    <span class="n">plt</span><span class="o">.</span><span class="n">title</span><span class="p">(</span><span class="s1">&#39;Bland-Altman Plot of Price Predictions&#39;</span><span class="p">)</span>
+    
+    <span class="c1"># Add colorbar to indicate days out</span>
+    <span class="n">cbar</span> <span class="o">=</span> <span class="n">plt</span><span class="o">.</span><span class="n">colorbar</span><span class="p">(</span><span class="n">scatter</span><span class="p">)</span>
+    <span class="n">cbar</span><span class="o">.</span><span class="n">set_label</span><span class="p">(</span><span class="s1">&#39;Days Out&#39;</span><span class="p">)</span>
+    
+    <span class="n">plt</span><span class="o">.</span><span class="n">legend</span><span class="p">()</span>
+    <span class="n">plt</span><span class="o">.</span><span class="n">grid</span><span class="p">(</span><span class="kc">True</span><span class="p">,</span> <span class="n">alpha</span><span class="o">=</span><span class="mf">0.3</span><span class="p">)</span>
+    <span class="n">plt</span><span class="o">.</span><span class="n">show</span><span class="p">()</span>
+    
+    <span class="c1"># Print statistical summary</span>
+    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Mean difference: </span><span class="si">{</span><span class="n">mean_diff</span><span class="si">:</span><span class="s2">.2f</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Upper limit of agreement: </span><span class="si">{</span><span class="n">upper_limit</span><span class="si">:</span><span class="s2">.2f</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Lower limit of agreement: </span><span class="si">{</span><span class="n">lower_limit</span><span class="si">:</span><span class="s2">.2f</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="analyze_accuracy_by_blocks">
+<a class="viewcode-back" href="../api_reference.html#model_analysis_test_set.analyze_accuracy_by_blocks">[docs]</a>
+<span class="k">def</span> <span class="nf">analyze_accuracy_by_blocks</span><span class="p">(</span><span class="n">merged_df</span><span class="p">,</span> <span class="n">n</span><span class="o">=</span><span class="mi">10</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Analyze prediction accuracy across different blocks of data.</span>
+<span class="sd">    </span>
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    merged_df : pandas.DataFrame</span>
+<span class="sd">        DataFrame containing prediction results and actual values.</span>
+<span class="sd">    n : int, default=10</span>
+<span class="sd">        Number of blocks to divide the data into.</span>
+<span class="sd">    </span>
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    pandas.DataFrame</span>
+<span class="sd">        DataFrame containing block analysis results, with metrics for each time block</span>
+<span class="sd">        including directional accuracy percentages and average prediction errors.</span>
+<span class="sd">        </span>
+<span class="sd">    Notes</span>
+<span class="sd">    -----</span>
+<span class="sd">    This function segments the dataset into time-based blocks to analyze how</span>
+<span class="sd">    prediction accuracy varies across different periods. It helps identify</span>
+<span class="sd">    whether the model performs consistently over time or if there are specific</span>
+<span class="sd">    periods where performance deteriorates.</span>
+<span class="sd">    </span>
+<span class="sd">    The function creates a visualization showing directional accuracy across</span>
+<span class="sd">    the time blocks and returns detailed metrics for further analysis.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="c1"># Assign a block number to each row based on its position in the dataset</span>
+    <span class="n">merged_df</span><span class="p">[</span><span class="s2">&quot;block&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">qcut</span><span class="p">(</span><span class="n">merged_df</span><span class="o">.</span><span class="n">index</span><span class="p">,</span> <span class="n">n</span><span class="p">,</span> <span class="n">labels</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+
+    <span class="c1"># Calculate slope match</span>
+    <span class="n">slope_match</span> <span class="o">=</span> <span class="p">(</span><span class="n">merged_df</span><span class="p">[</span><span class="s2">&quot;slope_actual&quot;</span><span class="p">]</span> <span class="o">==</span> <span class="n">merged_df</span><span class="p">[</span><span class="s2">&quot;slope_predicted&quot;</span><span class="p">])</span>
+
+    <span class="c1"># Group by the blocks and calculate slope match statistics</span>
+    <span class="n">block_analysis</span> <span class="o">=</span> <span class="n">merged_df</span><span class="o">.</span><span class="n">groupby</span><span class="p">(</span><span class="s2">&quot;block&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">apply</span><span class="p">(</span>
+        <span class="k">lambda</span> <span class="n">df</span><span class="p">:</span> <span class="n">pd</span><span class="o">.</span><span class="n">Series</span><span class="p">({</span>
+            <span class="s2">&quot;slope_match_count&quot;</span><span class="p">:</span> <span class="p">(</span><span class="n">df</span><span class="p">[</span><span class="s2">&quot;slope_actual&quot;</span><span class="p">]</span> <span class="o">==</span> <span class="n">df</span><span class="p">[</span><span class="s2">&quot;slope_predicted&quot;</span><span class="p">])</span><span class="o">.</span><span class="n">sum</span><span class="p">(),</span>
+            <span class="s2">&quot;total_comparisons&quot;</span><span class="p">:</span> <span class="nb">len</span><span class="p">(</span><span class="n">df</span><span class="p">),</span>
+            <span class="s2">&quot;slope_match_percentage&quot;</span><span class="p">:</span> <span class="p">(</span><span class="n">df</span><span class="p">[</span><span class="s2">&quot;slope_actual&quot;</span><span class="p">]</span> <span class="o">==</span> <span class="n">df</span><span class="p">[</span><span class="s2">&quot;slope_predicted&quot;</span><span class="p">])</span><span class="o">.</span><span class="n">mean</span><span class="p">()</span> <span class="o">*</span> <span class="mi">100</span><span class="p">,</span>
+            <span class="s2">&quot;avg_prediction_error&quot;</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">abs</span><span class="p">(</span><span class="n">df</span><span class="p">[</span><span class="s2">&quot;actual_price&quot;</span><span class="p">]</span> <span class="o">-</span> <span class="n">df</span><span class="p">[</span><span class="s2">&quot;predicted_price&quot;</span><span class="p">])</span><span class="o">.</span><span class="n">mean</span><span class="p">()</span>
+        <span class="p">})</span>
+    <span class="p">)</span>
+
+    <span class="c1"># Reset index for a cleaner DataFrame</span>
+    <span class="n">block_analysis</span> <span class="o">=</span> <span class="n">block_analysis</span><span class="o">.</span><span class="n">reset_index</span><span class="p">()</span>
+    
+    <span class="c1"># Print or visualize the results</span>
+    <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;</span><span class="se">\n</span><span class="s2">Accuracy Analysis by Time Blocks:&quot;</span><span class="p">)</span>
+    <span class="nb">print</span><span class="p">(</span><span class="n">block_analysis</span><span class="p">)</span>
+
+    <span class="n">plt</span><span class="o">.</span><span class="n">figure</span><span class="p">(</span><span class="n">figsize</span><span class="o">=</span><span class="p">(</span><span class="mi">10</span><span class="p">,</span> <span class="mi">6</span><span class="p">))</span>
+    <span class="n">plt</span><span class="o">.</span><span class="n">bar</span><span class="p">(</span><span class="n">block_analysis</span><span class="p">[</span><span class="s2">&quot;block&quot;</span><span class="p">],</span> <span class="n">block_analysis</span><span class="p">[</span><span class="s2">&quot;slope_match_percentage&quot;</span><span class="p">],</span> <span class="n">color</span><span class="o">=</span><span class="s2">&quot;skyblue&quot;</span><span class="p">)</span>
+    <span class="n">plt</span><span class="o">.</span><span class="n">xlabel</span><span class="p">(</span><span class="s2">&quot;Block Number&quot;</span><span class="p">)</span>
+    <span class="n">plt</span><span class="o">.</span><span class="n">ylabel</span><span class="p">(</span><span class="s2">&quot;Directional Accuracy (%)&quot;</span><span class="p">)</span>
+    <span class="n">plt</span><span class="o">.</span><span class="n">title</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Directional Accuracy Across </span><span class="si">{</span><span class="n">n</span><span class="si">}</span><span class="s2"> Time Blocks&quot;</span><span class="p">)</span>
+    <span class="n">plt</span><span class="o">.</span><span class="n">xticks</span><span class="p">(</span><span class="n">block_analysis</span><span class="p">[</span><span class="s2">&quot;block&quot;</span><span class="p">])</span>
+    <span class="n">plt</span><span class="o">.</span><span class="n">grid</span><span class="p">(</span><span class="kc">True</span><span class="p">,</span> <span class="n">alpha</span><span class="o">=</span><span class="mf">0.3</span><span class="p">)</span>
+    <span class="n">plt</span><span class="o">.</span><span class="n">show</span><span class="p">()</span>
+    
+    <span class="k">return</span> <span class="n">block_analysis</span></div>
+
+
+<div class="viewcode-block" id="analyze_accuracy_by_price_range">
+<a class="viewcode-back" href="../api_reference.html#model_analysis_test_set.analyze_accuracy_by_price_range">[docs]</a>
+<span class="k">def</span> <span class="nf">analyze_accuracy_by_price_range</span><span class="p">(</span><span class="n">merged_df</span><span class="p">,</span> <span class="n">n</span><span class="o">=</span><span class="mi">10</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Analyze prediction accuracy across different price ranges.</span>
+<span class="sd">    </span>
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    merged_df : pandas.DataFrame</span>
+<span class="sd">        DataFrame containing prediction results and actual values.</span>
+<span class="sd">    n : int, default=10</span>
+<span class="sd">        Number of price ranges to analyze.</span>
+<span class="sd">    </span>
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    pandas.DataFrame</span>
+<span class="sd">        DataFrame containing price range analysis results, with metrics for each</span>
+<span class="sd">        price range including directional accuracy percentages, price boundaries,</span>
+<span class="sd">        and average prediction errors.</span>
+<span class="sd">        </span>
+<span class="sd">    Notes</span>
+<span class="sd">    -----</span>
+<span class="sd">    This function segments the dataset into price-based ranges to analyze how</span>
+<span class="sd">    prediction accuracy varies across different price levels. It helps identify</span>
+<span class="sd">    whether the model performs consistently across all price ranges or if there</span>
+<span class="sd">    are specific price levels where performance is better or worse.</span>
+<span class="sd">    </span>
+<span class="sd">    The function creates a visualization showing directional accuracy across</span>
+<span class="sd">    the price ranges and returns detailed metrics for further analysis. This</span>
+<span class="sd">    information can be valuable for understanding model limitations and potential</span>
+<span class="sd">    price-dependent biases.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="c1"># Create blocks based on the range of actual prices</span>
+    <span class="n">merged_df</span><span class="p">[</span><span class="s2">&quot;price_block&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">qcut</span><span class="p">(</span><span class="n">merged_df</span><span class="p">[</span><span class="s2">&quot;actual_price&quot;</span><span class="p">],</span> <span class="n">n</span><span class="p">,</span> <span class="n">labels</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+
+    <span class="c1"># Group by the price blocks and calculate slope match statistics</span>
+    <span class="n">price_analysis</span> <span class="o">=</span> <span class="n">merged_df</span><span class="o">.</span><span class="n">groupby</span><span class="p">(</span><span class="s2">&quot;price_block&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">apply</span><span class="p">(</span>
+        <span class="k">lambda</span> <span class="n">df</span><span class="p">:</span> <span class="n">pd</span><span class="o">.</span><span class="n">Series</span><span class="p">({</span>
+            <span class="s2">&quot;slope_match_count&quot;</span><span class="p">:</span> <span class="p">(</span><span class="n">df</span><span class="p">[</span><span class="s2">&quot;slope_actual&quot;</span><span class="p">]</span> <span class="o">==</span> <span class="n">df</span><span class="p">[</span><span class="s2">&quot;slope_predicted&quot;</span><span class="p">])</span><span class="o">.</span><span class="n">sum</span><span class="p">(),</span>
+            <span class="s2">&quot;total_comparisons&quot;</span><span class="p">:</span> <span class="nb">len</span><span class="p">(</span><span class="n">df</span><span class="p">),</span>
+            <span class="s2">&quot;slope_match_percentage&quot;</span><span class="p">:</span> <span class="p">(</span><span class="n">df</span><span class="p">[</span><span class="s2">&quot;slope_actual&quot;</span><span class="p">]</span> <span class="o">==</span> <span class="n">df</span><span class="p">[</span><span class="s2">&quot;slope_predicted&quot;</span><span class="p">])</span><span class="o">.</span><span class="n">mean</span><span class="p">()</span> <span class="o">*</span> <span class="mi">100</span><span class="p">,</span>
+            <span class="s2">&quot;price_min&quot;</span><span class="p">:</span> <span class="n">df</span><span class="p">[</span><span class="s2">&quot;actual_price&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">min</span><span class="p">(),</span>
+            <span class="s2">&quot;price_max&quot;</span><span class="p">:</span> <span class="n">df</span><span class="p">[</span><span class="s2">&quot;actual_price&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">max</span><span class="p">(),</span>
+            <span class="s2">&quot;avg_prediction_error&quot;</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">abs</span><span class="p">(</span><span class="n">df</span><span class="p">[</span><span class="s2">&quot;actual_price&quot;</span><span class="p">]</span> <span class="o">-</span> <span class="n">df</span><span class="p">[</span><span class="s2">&quot;predicted_price&quot;</span><span class="p">])</span><span class="o">.</span><span class="n">mean</span><span class="p">()</span>
+        <span class="p">})</span>
+    <span class="p">)</span>
+
+    <span class="c1"># Reset index for a cleaner DataFrame</span>
+    <span class="n">price_analysis</span> <span class="o">=</span> <span class="n">price_analysis</span><span class="o">.</span><span class="n">reset_index</span><span class="p">()</span>
+    
+    <span class="c1"># Print the results</span>
+    <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;</span><span class="se">\n</span><span class="s2">Accuracy Analysis by Price Range:&quot;</span><span class="p">)</span>
+    <span class="nb">print</span><span class="p">(</span><span class="n">price_analysis</span><span class="p">)</span>
+
+    <span class="n">plt</span><span class="o">.</span><span class="n">figure</span><span class="p">(</span><span class="n">figsize</span><span class="o">=</span><span class="p">(</span><span class="mi">10</span><span class="p">,</span> <span class="mi">6</span><span class="p">))</span>
+    <span class="n">plt</span><span class="o">.</span><span class="n">bar</span><span class="p">(</span>
+        <span class="n">price_analysis</span><span class="o">.</span><span class="n">index</span><span class="p">,</span> 
+        <span class="n">price_analysis</span><span class="p">[</span><span class="s2">&quot;slope_match_percentage&quot;</span><span class="p">],</span> 
+        <span class="n">color</span><span class="o">=</span><span class="s2">&quot;lightgreen&quot;</span><span class="p">,</span> 
+        <span class="n">edgecolor</span><span class="o">=</span><span class="s2">&quot;black&quot;</span>
+    <span class="p">)</span>
+    <span class="n">plt</span><span class="o">.</span><span class="n">xlabel</span><span class="p">(</span><span class="s2">&quot;Price Range&quot;</span><span class="p">)</span>
+    <span class="n">plt</span><span class="o">.</span><span class="n">ylabel</span><span class="p">(</span><span class="s2">&quot;Directional Accuracy (%)&quot;</span><span class="p">)</span>
+    <span class="n">plt</span><span class="o">.</span><span class="n">title</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Directional Accuracy Across </span><span class="si">{</span><span class="n">n</span><span class="si">}</span><span class="s2"> Price Ranges&quot;</span><span class="p">)</span>
+    <span class="n">plt</span><span class="o">.</span><span class="n">xticks</span><span class="p">(</span><span class="n">price_analysis</span><span class="o">.</span><span class="n">index</span><span class="p">,</span> <span class="n">labels</span><span class="o">=</span><span class="p">[</span>
+        <span class="sa">f</span><span class="s2">&quot;[</span><span class="si">{</span><span class="n">row</span><span class="p">[</span><span class="s1">&#39;price_min&#39;</span><span class="p">]</span><span class="si">:</span><span class="s2">.2f</span><span class="si">}</span><span class="s2">, </span><span class="si">{</span><span class="n">row</span><span class="p">[</span><span class="s1">&#39;price_max&#39;</span><span class="p">]</span><span class="si">:</span><span class="s2">.2f</span><span class="si">}</span><span class="s2">]&quot;</span> <span class="k">for</span> <span class="n">_</span><span class="p">,</span> <span class="n">row</span> <span class="ow">in</span> <span class="n">price_analysis</span><span class="o">.</span><span class="n">iterrows</span><span class="p">()],</span> <span class="n">rotation</span><span class="o">=</span><span class="mi">45</span>
+    <span class="p">)</span>
+    <span class="n">plt</span><span class="o">.</span><span class="n">grid</span><span class="p">(</span><span class="kc">True</span><span class="p">,</span> <span class="n">alpha</span><span class="o">=</span><span class="mf">0.3</span><span class="p">)</span>
+    <span class="n">plt</span><span class="o">.</span><span class="n">tight_layout</span><span class="p">()</span>
+    <span class="n">plt</span><span class="o">.</span><span class="n">show</span><span class="p">()</span>
+    
+    <span class="k">return</span> <span class="n">price_analysis</span></div>
+
+</pre></div>
+
+            <div class="clearer"></div>
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<search id="searchbox" style="display: none" role="search">
+  <h3 id="searchlabel">Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="../search.html" method="get">
+      <input type="text" name="q" aria-labelledby="searchlabel" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"/>
+      <input type="submit" value="Go" />
+    </form>
+    </div>
+</search>
+<script>document.getElementById('searchbox').style.display = "block"</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../index.html">CoffeeGPT 1.5.4 documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="index.html" >Module code</a> &#187;</li>
+        <li class="nav-item nav-item-this"><a href="">model_analysis_test_set</a></li> 
+      </ul>
+    </div>
+    <div class="footer" role="contentinfo">
+    &#169; Copyright 2025, John Hohman.
+      Created using <a href="https://www.sphinx-doc.org/">Sphinx</a> 7.3.7.
+    </div>
+  </body>
+</html>

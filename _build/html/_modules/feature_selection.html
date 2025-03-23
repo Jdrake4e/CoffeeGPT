@@ -1,0 +1,464 @@
+<!DOCTYPE html>
+
+<html lang="en" data-content_root="../">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>feature_selection &#8212; CoffeeGPT 1.5.4 documentation</title>
+    <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=a746c00c" />
+    <link rel="stylesheet" type="text/css" href="../_static/nature.css?v=0f882399" />
+    <link rel="stylesheet" type="text/css" href="../_static/custom.css" />
+    <script src="../_static/documentation_options.js?v=1cd648e3"></script>
+    <script src="../_static/doctools.js?v=9a2dae69"></script>
+    <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" /> 
+  </head><body>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../index.html">CoffeeGPT 1.5.4 documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="index.html" accesskey="U">Module code</a> &#187;</li>
+        <li class="nav-item nav-item-this"><a href="">feature_selection</a></li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <h1>Source code for feature_selection</h1><div class="highlight"><pre>
+<span></span><span class="kn">import</span> <span class="nn">utility_functions</span> <span class="k">as</span> <span class="nn">uf</span>
+<span class="kn">import</span> <span class="nn">file_readin_functions</span> <span class="k">as</span> <span class="nn">frf</span>
+<span class="kn">import</span> <span class="nn">pandas</span> <span class="k">as</span> <span class="nn">pd</span> <span class="c1"># type: ignore</span>
+<span class="kn">import</span> <span class="nn">seaborn</span> <span class="k">as</span> <span class="nn">sns</span> <span class="c1"># type: ignore</span>
+<span class="kn">import</span> <span class="nn">matplotlib.pyplot</span> <span class="k">as</span> <span class="nn">plt</span> <span class="c1"># type: ignore</span>
+<span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span> <span class="c1"># type: ignore</span>
+<span class="kn">import</span> <span class="nn">statsmodels.api</span> <span class="k">as</span> <span class="nn">sm</span> <span class="c1"># type: ignore</span>
+<span class="kn">from</span> <span class="nn">statsmodels.tsa.stattools</span> <span class="kn">import</span> <span class="n">grangercausalitytests</span> <span class="c1"># type: ignore</span>
+<span class="kn">import</span> <span class="nn">os</span>
+<span class="kn">import</span> <span class="nn">sys</span>
+<span class="kn">from</span> <span class="nn">contextlib</span> <span class="kn">import</span> <span class="n">contextmanager</span>
+
+<div class="viewcode-block" id="suppress_output">
+<a class="viewcode-back" href="../api_reference.html#feature_selection.suppress_output">[docs]</a>
+<span class="nd">@contextmanager</span>
+<span class="k">def</span> <span class="nf">suppress_output</span><span class="p">():</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Context manager to redirect stdout and stderr to devnull.</span>
+
+<span class="sd">    Temporarily suppresses all standard output during execution of the wrapped</span>
+<span class="sd">    code and restores it afterward.</span>
+
+<span class="sd">    Yields</span>
+<span class="sd">    ------</span>
+<span class="sd">    file object</span>
+<span class="sd">        The devnull file object that stdout is redirected to.</span>
+
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">old_target</span> <span class="o">=</span> <span class="n">sys</span><span class="o">.</span><span class="n">stdout</span>
+    <span class="k">try</span><span class="p">:</span>
+        <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">devnull</span><span class="p">,</span> <span class="s2">&quot;w&quot;</span><span class="p">)</span> <span class="k">as</span> <span class="n">new_target</span><span class="p">:</span>
+            <span class="n">sys</span><span class="o">.</span><span class="n">stdout</span> <span class="o">=</span> <span class="n">new_target</span>
+            <span class="k">yield</span> <span class="n">new_target</span>
+    <span class="k">finally</span><span class="p">:</span>
+        <span class="n">sys</span><span class="o">.</span><span class="n">stdout</span> <span class="o">=</span> <span class="n">old_target</span></div>
+
+
+<div class="viewcode-block" id="wrapped_granger_causality_test">
+<a class="viewcode-back" href="../api_reference.html#feature_selection.wrapped_granger_causality_test">[docs]</a>
+<span class="k">def</span> <span class="nf">wrapped_granger_causality_test</span><span class="p">(</span><span class="n">target</span><span class="p">,</span> <span class="n">feature</span><span class="p">,</span> <span class="n">maxlag</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Test for Granger causality between time series variables.</span>
+
+<span class="sd">    This function implements a robust Granger causality test to determine whether</span>
+<span class="sd">    past values of one time series (feature) help predict future values of another</span>
+<span class="sd">    time series (target) better than the target&#39;s past values alone.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    target : pandas.Series</span>
+<span class="sd">        The target time series variable to be predicted.</span>
+<span class="sd">    feature : pandas.Series</span>
+<span class="sd">        The feature time series variable to test for causal relationship.</span>
+<span class="sd">    maxlag : int</span>
+<span class="sd">        Maximum number of lags to test for causality.</span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    list of dict</span>
+<span class="sd">        List of dictionaries containing test results for each lag, with keys:</span>
+<span class="sd">        </span>
+<span class="sd">        - &#39;Lag&#39; : int</span>
+<span class="sd">            The lag order for this test</span>
+<span class="sd">        - &#39;F-Statistic&#39; : float</span>
+<span class="sd">            The F-statistic value for this lag</span>
+<span class="sd">        - &#39;p-value&#39; : float</span>
+<span class="sd">            The p-value for this lag&#39;s test</span>
+
+<span class="sd">        Returns an empty list if the test fails.</span>
+
+<span class="sd">    Notes</span>
+<span class="sd">    -----</span>
+<span class="sd">    Design Decisions:</span>
+
+<span class="sd">    1. Statistical Framework:</span>
+<span class="sd">       - Uses F-test based on sum of squared residuals</span>
+<span class="sd">       - Tests null hypothesis of no Granger causality</span>
+<span class="sd">       - Implements multiple lag testing for robustness</span>
+
+<span class="sd">    2. Data Handling:</span>
+<span class="sd">       - Removes missing values before testing</span>
+<span class="sd">       - Preserves time series ordering</span>
+<span class="sd">       - Handles non-stationary data gracefully</span>
+
+<span class="sd">    3. Error Management:</span>
+<span class="sd">       - Silent error handling to prevent pipeline breaks</span>
+<span class="sd">       - Returns empty list instead of raising exceptions</span>
+<span class="sd">       - Allows for batch processing of multiple tests</span>
+
+<span class="sd">    4. Performance:</span>
+<span class="sd">       - Efficient implementation using statsmodels</span>
+<span class="sd">       - Minimizes memory usage in results storage</span>
+<span class="sd">       - Suitable for large-scale feature selection</span>
+
+<span class="sd">    Warnings</span>
+<span class="sd">    --------</span>
+<span class="sd">    - The test assumes linear relationships between variables</span>
+<span class="sd">    - Results may be misleading for non-stationary time series</span>
+<span class="sd">    - Small sample sizes may affect test reliability</span>
+
+<span class="sd">    See Also</span>
+<span class="sd">    --------</span>
+<span class="sd">    statsmodels.tsa.stattools.grangercausalitytests : Core testing function</span>
+<span class="sd">    feature_selection_pipeline : Main pipeline using this test</span>
+
+<span class="sd">    Examples</span>
+<span class="sd">    --------</span>
+<span class="sd">    &gt;&gt;&gt; import pandas as pd</span>
+<span class="sd">    &gt;&gt;&gt; # Create sample data</span>
+<span class="sd">    &gt;&gt;&gt; data = pd.DataFrame({</span>
+<span class="sd">    ...     &#39;target&#39;: [100, 102, 105, 108, 110],</span>
+<span class="sd">    ...     &#39;feature&#39;: [7, 6.8, 6.5, 6.3, 6.0]</span>
+<span class="sd">    ... })</span>
+<span class="sd">    &gt;&gt;&gt; # Run test</span>
+<span class="sd">    &gt;&gt;&gt; results = wrapped_granger_causality_test(</span>
+<span class="sd">    ...     data[&#39;target&#39;],</span>
+<span class="sd">    ...     data[&#39;feature&#39;],</span>
+<span class="sd">    ...     maxlag=2</span>
+<span class="sd">    ... )</span>
+<span class="sd">    &gt;&gt;&gt; # Print results</span>
+<span class="sd">    &gt;&gt;&gt; for r in results:</span>
+<span class="sd">    ...     print(f&quot;Lag {r[&#39;Lag&#39;]}: p={r[&#39;p-value&#39;]:.4f}&quot;)</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="c1"># 1. INITIALIZATION</span>
+    <span class="n">results</span> <span class="o">=</span> <span class="p">[]</span>
+    
+    <span class="c1"># 2. EXECUTION WITH ERROR HANDLING</span>
+    <span class="k">try</span><span class="p">:</span>
+        <span class="c1"># 2.1 Data preparation - concatenate series and handle missing values</span>
+        <span class="n">data</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">concat</span><span class="p">([</span><span class="n">target</span><span class="p">,</span> <span class="n">feature</span><span class="p">],</span> <span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span><span class="o">.</span><span class="n">dropna</span><span class="p">()</span>
+        
+        <span class="c1"># 2.2 Run Granger causality tests for multiple lags</span>
+        <span class="c1"># Note: verbose=None suppresses stdout from statsmodels</span>
+        <span class="n">gc_test</span> <span class="o">=</span> <span class="n">grangercausalitytests</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="n">maxlag</span><span class="o">=</span><span class="n">maxlag</span><span class="p">,</span> <span class="n">verbose</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span>
+        
+        <span class="c1"># 2.3 Extract and format test statistics for each lag</span>
+        <span class="k">for</span> <span class="n">lag</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="n">maxlag</span> <span class="o">+</span> <span class="mi">1</span><span class="p">):</span>
+            <span class="c1"># Extract F-statistic and p-value from the test results</span>
+            <span class="c1"># The &#39;ssr_ftest&#39; uses sum of squared residuals F-test</span>
+            <span class="n">f_stat</span> <span class="o">=</span> <span class="n">gc_test</span><span class="p">[</span><span class="n">lag</span><span class="p">][</span><span class="mi">0</span><span class="p">][</span><span class="s1">&#39;ssr_ftest&#39;</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span>  <span class="c1"># F-statistic value</span>
+            <span class="n">p_val</span> <span class="o">=</span> <span class="n">gc_test</span><span class="p">[</span><span class="n">lag</span><span class="p">][</span><span class="mi">0</span><span class="p">][</span><span class="s1">&#39;ssr_ftest&#39;</span><span class="p">][</span><span class="mi">1</span><span class="p">]</span>   <span class="c1"># p-value</span>
+            
+            <span class="c1"># 2.4 Store results in a structured format</span>
+            <span class="n">results</span><span class="o">.</span><span class="n">append</span><span class="p">({</span>
+                <span class="s1">&#39;Lag&#39;</span><span class="p">:</span> <span class="n">lag</span><span class="p">,</span>              <span class="c1"># Current lag being tested</span>
+                <span class="s1">&#39;F-Statistic&#39;</span><span class="p">:</span> <span class="n">f_stat</span><span class="p">,</span>   <span class="c1"># F-statistic for this lag</span>
+                <span class="s1">&#39;p-value&#39;</span><span class="p">:</span> <span class="n">p_val</span>         <span class="c1"># p-value for this lag</span>
+            <span class="p">})</span>
+    <span class="k">except</span><span class="p">:</span>
+        <span class="c1"># 3. ERROR HANDLING</span>
+        <span class="c1"># Silently handle any exceptions (insufficient data, non-stationarity, etc.)</span>
+        <span class="c1"># and return an empty list to indicate the test couldn&#39;t be performed</span>
+        <span class="k">pass</span>
+    
+    <span class="c1"># 4. RETURN RESULTS</span>
+    <span class="k">return</span> <span class="n">results</span></div>
+
+
+<span class="c1">#TODO Generalize function to an arbitray target variable and date format</span>
+<span class="c1">#TODO Implement better control over granularity of lag being targeted</span>
+<span class="c1">#TODO fix this repeating warning: c:\ProgramData\anaconda3\envs\Coffee_cuda\Lib\site-packages\statsmodels\base\model.py:1888: ValueWarning: covariance of constraints does not have full rank. The number of constraints is 3, but rank is 2</span>
+<span class="c1">#   warnings.warn(&#39;covariance of constraints does not have full &#39;</span>
+<span class="c1"># c:\ProgramData\anaconda3\envs\Coffee_cuda\Lib\site-packages\statsmodels\base\model.py:1888: ValueWarning: covariance of constraints does not have full rank. The number of constraints is 3, but rank is 2</span>
+<span class="c1">#   warnings.warn(&#39;covariance of constraints does not have full &#39;</span>
+
+<div class="viewcode-block" id="granger_feature_selector">
+<a class="viewcode-back" href="../api_reference.html#feature_selection.granger_feature_selector">[docs]</a>
+<span class="k">def</span> <span class="nf">granger_feature_selector</span><span class="p">(</span><span class="n">dataframes_dict</span><span class="p">,</span> <span class="n">alpha</span><span class="o">=</span><span class="mf">0.05</span><span class="p">,</span> <span class="n">f_threshold</span><span class="o">=</span><span class="mf">4.0</span><span class="p">,</span> <span class="n">min_lag</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">max_lag</span><span class="o">=</span><span class="mi">7</span><span class="p">,</span> <span class="n">monthly_data</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Perform Granger causality tests to select predictive features from time series data.</span>
+<span class="sd">    </span>
+<span class="sd">    This function identifies features across multiple dataframes that have statistically</span>
+<span class="sd">    significant predictive power for a target variable (futures prices) using Granger</span>
+<span class="sd">    causality testing. It handles annual and monthly data aggregation and employs robust</span>
+<span class="sd">    error handling to ensure feature selection even with inconsistent data.</span>
+<span class="sd">    </span>
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    dataframes_dict : dict</span>
+<span class="sd">        Dictionary of dataframes to analyze. Must include a &#39;futures&#39; dataframe</span>
+<span class="sd">        containing the target price variable. Other entries can be either dataframes</span>
+<span class="sd">        or dictionaries of dataframes.</span>
+<span class="sd">    alpha : float, optional</span>
+<span class="sd">        Significance level threshold for p-values, by default 0.05.</span>
+<span class="sd">        Features with p-values below this threshold are considered significant.</span>
+<span class="sd">    f_threshold : float, optional</span>
+<span class="sd">        Minimum F-statistic threshold, by default 4.0.</span>
+<span class="sd">        Features must exceed this F-statistic value to be selected.</span>
+<span class="sd">    min_lag : int, optional</span>
+<span class="sd">        Minimum lag to consider for causality, by default 1.</span>
+<span class="sd">        Represents the minimum time delay for potential causal effects.</span>
+<span class="sd">    max_lag : int, optional</span>
+<span class="sd">        Maximum lag to consider for causality, by default 7.</span>
+<span class="sd">        Represents the maximum time delay for potential causal effects.</span>
+<span class="sd">    monthly_data : bool, optional</span>
+<span class="sd">        Whether the data is monthly (True) or yearly (False), by default False.</span>
+<span class="sd">        Affects column naming and aggregation approaches.</span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    list</span>
+<span class="sd">        List of unique selected feature column names across all dataframes that</span>
+<span class="sd">        meet the Granger causality criteria for predicting futures prices.</span>
+<span class="sd">        </span>
+<span class="sd">    Notes</span>
+<span class="sd">    -----</span>
+<span class="sd">    1. Data Preparation and Structure</span>
+<span class="sd">    ----------------------------------</span>
+<span class="sd">    1.1. Target Variable Handling</span>
+<span class="sd">        - For yearly data: Uses &#39;Price&#39; column as the target variable</span>
+<span class="sd">        - For monthly data: Uses &#39;Price_mean&#39; column as the target variable</span>
+<span class="sd">        - Target is aggregated by year to enable time series causality testing</span>
+<span class="sd">    </span>
+<span class="sd">    1.2. Input Data Structure Requirements</span>
+<span class="sd">        - The &#39;futures&#39; dataframe must contain the target price variable</span>
+<span class="sd">        - All dataframes should contain a &#39;Date&#39; column for time alignment</span>
+<span class="sd">        - Can accept nested dictionaries of dataframes for hierarchical data</span>
+<span class="sd">    </span>
+<span class="sd">    2. Processing and Analysis Flow</span>
+<span class="sd">    -------------------------------</span>
+<span class="sd">    2.1. Output Suppression</span>
+<span class="sd">        - All standard output is redirected to devnull during execution</span>
+<span class="sd">        - Prevents verbose output from statsmodels during testing</span>
+<span class="sd">    </span>
+<span class="sd">    2.2. Target Data Preparation</span>
+<span class="sd">        - Futures dataframe is extracted and processed</span>
+<span class="sd">        - Dates are converted to datetime objects</span>
+<span class="sd">        - Data is aggregated by year for consistent time series analysis</span>
+<span class="sd">    </span>
+<span class="sd">    2.3. Feature Dataframe Processing</span>
+<span class="sd">        - Each dataframe except &#39;futures&#39; is processed individually</span>
+<span class="sd">        - Handles both single dataframes and nested dictionaries</span>
+<span class="sd">        - Maintains &#39;Date&#39; column for all dataframes by default</span>
+<span class="sd">    </span>
+<span class="sd">    2.4. Feature Selection Procedure</span>
+<span class="sd">        - For each numerical column in each dataframe:</span>
+<span class="sd">            a. Data is aggregated yearly</span>
+<span class="sd">            b. Merged with target data on year</span>
+<span class="sd">            c. Granger causality tests performed for lags min_lag to max_lag</span>
+<span class="sd">            d. Features selected if they meet both p-value and F-statistic criteria</span>
+<span class="sd">        - For selected features, corresponding &quot;_was_nan&quot; columns are also included</span>
+<span class="sd">    </span>
+<span class="sd">    3. Error Handling and Robustness</span>
+<span class="sd">    --------------------------------</span>
+<span class="sd">    3.1. Exception Management</span>
+<span class="sd">        - Individual dataframe processing errors are caught and handled</span>
+<span class="sd">        - Ensures the function continues even if some dataframes cause errors</span>
+<span class="sd">        - Defaults to including only &#39;Date&#39; column if a dataframe fails processing</span>
+<span class="sd">    </span>
+<span class="sd">    3.2. Data Sufficiency Check</span>
+<span class="sd">        - Skips analysis for merged datasets with insufficient time points</span>
+<span class="sd">        - Requires at least max_lag + 2 observations for valid causality testing</span>
+<span class="sd">    </span>
+<span class="sd">    4. Output Generation</span>
+<span class="sd">    --------------------</span>
+<span class="sd">    4.1. Default Inclusions</span>
+<span class="sd">        - For non-monthly data: &#39;Date&#39; and &#39;Price&#39; from futures are always included</span>
+<span class="sd">        - For monthly data: Price statistics (mean, median, min, max) are included</span>
+<span class="sd">    </span>
+<span class="sd">    4.2. Feature Deduplication</span>
+<span class="sd">        - Returns a list of unique features to avoid redundancy</span>
+<span class="sd">        - Converts set back to list for consistent output format</span>
+<span class="sd">    </span>
+<span class="sd">    Examples</span>
+<span class="sd">    --------</span>
+<span class="sd">    &gt;&gt;&gt; # Example with yearly data</span>
+<span class="sd">    &gt;&gt;&gt; dfs = {</span>
+<span class="sd">    ...     &#39;futures&#39;: df_futures,</span>
+<span class="sd">    ...     &#39;economic_indicators&#39;: df_econ,</span>
+<span class="sd">    ...     &#39;weather_data&#39;: df_weather</span>
+<span class="sd">    ... }</span>
+<span class="sd">    &gt;&gt;&gt; selected_features = granger_feature_selector(</span>
+<span class="sd">    ...     dfs, </span>
+<span class="sd">    ...     alpha=0.05, </span>
+<span class="sd">    ...     f_threshold=4.0, </span>
+<span class="sd">    ...     max_lag=5</span>
+<span class="sd">    ... )</span>
+<span class="sd">    &gt;&gt;&gt; print(f&quot;Selected features: {selected_features}&quot;)</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="c1"># 1. INITIALIZATION AND SETUP</span>
+    <span class="c1"># 1.1 Determine target column name based on data frequency</span>
+    <span class="k">if</span> <span class="n">monthly_data</span><span class="p">:</span>
+        <span class="n">price_column_name</span> <span class="o">=</span> <span class="s2">&quot;Price_mean&quot;</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">price_column_name</span> <span class="o">=</span> <span class="s2">&quot;Price&quot;</span>
+    
+    <span class="c1"># 1.2 Suppress statsmodels output during processing</span>
+    <span class="k">with</span> <span class="n">suppress_output</span><span class="p">():</span>
+        <span class="c1"># 1.3 Initialize storage for selected features</span>
+        <span class="n">selected_features</span> <span class="o">=</span> <span class="p">{}</span>
+        
+        <span class="c1"># 2. TARGET DATA PREPARATION</span>
+        <span class="c1"># 2.1 Extract futures dataframe (contains target variable)</span>
+        <span class="n">futures</span> <span class="o">=</span> <span class="n">dataframes_dict</span><span class="p">[</span><span class="s1">&#39;futures&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+        
+        <span class="c1"># 2.2 Convert dates and extract year for aggregation</span>
+        <span class="n">futures</span><span class="p">[</span><span class="s1">&#39;Date&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">to_datetime</span><span class="p">(</span><span class="n">futures</span><span class="p">[</span><span class="s1">&#39;Date&#39;</span><span class="p">])</span>
+        <span class="n">futures</span><span class="p">[</span><span class="s1">&#39;Year&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">futures</span><span class="p">[</span><span class="s1">&#39;Date&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">dt</span><span class="o">.</span><span class="n">year</span>
+        
+        <span class="c1"># 2.3 Aggregate futures data by year</span>
+        <span class="n">yearly_futures</span> <span class="o">=</span> <span class="n">futures</span><span class="o">.</span><span class="n">groupby</span><span class="p">(</span><span class="s1">&#39;Year&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">agg</span><span class="p">({</span>
+            <span class="n">price_column_name</span><span class="p">:</span> <span class="s1">&#39;mean&#39;</span>
+        <span class="p">})</span><span class="o">.</span><span class="n">reset_index</span><span class="p">()</span>
+        
+        <span class="c1"># 3. PROCESS EACH FEATURE DATAFRAME</span>
+        <span class="k">for</span> <span class="n">df_name</span><span class="p">,</span> <span class="n">df</span> <span class="ow">in</span> <span class="n">dataframes_dict</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+            <span class="c1"># 3.1 Skip the target dataframe (futures)</span>
+            <span class="k">if</span> <span class="n">df_name</span> <span class="o">==</span> <span class="s1">&#39;futures&#39;</span><span class="p">:</span>
+                <span class="k">continue</span>  <span class="c1"># Skip futures as it&#39;s our target</span>
+                
+            <span class="k">try</span><span class="p">:</span>
+                <span class="c1"># 3.2 Handle both dictionary of dataframes and single dataframes</span>
+                <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">df</span><span class="p">,</span> <span class="nb">dict</span><span class="p">):</span>
+                    <span class="n">dfs_to_process</span> <span class="o">=</span> <span class="n">df</span><span class="o">.</span><span class="n">values</span><span class="p">()</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="n">dfs_to_process</span> <span class="o">=</span> <span class="p">[</span><span class="n">df</span><span class="p">]</span>
+                
+                <span class="c1"># 3.3 Initialize feature list with Date column</span>
+                <span class="n">selected_features</span><span class="p">[</span><span class="n">df_name</span><span class="p">]</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;Date&#39;</span><span class="p">]</span>  <span class="c1"># Always include Date</span>
+                
+                <span class="c1"># 3.4 Process each dataframe in the collection</span>
+                <span class="k">for</span> <span class="n">current_df</span> <span class="ow">in</span> <span class="n">dfs_to_process</span><span class="p">:</span>
+                    <span class="n">current_df</span> <span class="o">=</span> <span class="n">current_df</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+                    
+                    <span class="c1"># 3.5 Ensure proper date handling</span>
+                    <span class="k">if</span> <span class="s1">&#39;Date&#39;</span> <span class="ow">in</span> <span class="n">current_df</span><span class="o">.</span><span class="n">columns</span><span class="p">:</span>
+                        <span class="n">current_df</span><span class="p">[</span><span class="s1">&#39;Date&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">to_datetime</span><span class="p">(</span><span class="n">current_df</span><span class="p">[</span><span class="s1">&#39;Date&#39;</span><span class="p">])</span>
+                        <span class="n">current_df</span><span class="p">[</span><span class="s1">&#39;Year&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">current_df</span><span class="p">[</span><span class="s1">&#39;Date&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">dt</span><span class="o">.</span><span class="n">year</span>
+                    
+                    <span class="c1"># 3.6 Identify numerical columns for testing</span>
+                    <span class="n">numerical_cols</span> <span class="o">=</span> <span class="n">current_df</span><span class="o">.</span><span class="n">select_dtypes</span><span class="p">(</span><span class="n">include</span><span class="o">=</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">number</span><span class="p">])</span><span class="o">.</span><span class="n">columns</span>
+                    <span class="n">numerical_cols</span> <span class="o">=</span> <span class="p">[</span><span class="n">col</span> <span class="k">for</span> <span class="n">col</span> <span class="ow">in</span> <span class="n">numerical_cols</span> <span class="k">if</span> <span class="n">col</span> <span class="ow">not</span> <span class="ow">in</span> <span class="p">[</span><span class="s1">&#39;Date&#39;</span><span class="p">,</span> <span class="s1">&#39;Year&#39;</span><span class="p">]]</span>
+                    
+                    <span class="c1"># 3.7 Aggregate features by year for alignment with target</span>
+                    <span class="n">yearly_df</span> <span class="o">=</span> <span class="n">current_df</span><span class="o">.</span><span class="n">groupby</span><span class="p">(</span><span class="s1">&#39;Year&#39;</span><span class="p">)[</span><span class="n">numerical_cols</span><span class="p">]</span><span class="o">.</span><span class="n">mean</span><span class="p">()</span><span class="o">.</span><span class="n">reset_index</span><span class="p">()</span>
+                    
+                    <span class="c1"># 3.8 Merge target and feature data on Year</span>
+                    <span class="n">merged_df</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">merge</span><span class="p">(</span><span class="n">yearly_futures</span><span class="p">,</span> <span class="n">yearly_df</span><span class="p">,</span> <span class="n">on</span><span class="o">=</span><span class="s1">&#39;Year&#39;</span><span class="p">,</span> <span class="n">how</span><span class="o">=</span><span class="s1">&#39;inner&#39;</span><span class="p">)</span>
+                    
+                    <span class="c1"># 3.9 Skip if insufficient data points for the specified lag</span>
+                    <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">merged_df</span><span class="p">)</span> <span class="o">&lt;</span> <span class="n">max_lag</span> <span class="o">+</span> <span class="mi">2</span><span class="p">:</span>
+                        <span class="k">continue</span>
+                    
+                    <span class="c1"># 4. FEATURE TESTING AND SELECTION</span>
+                    <span class="k">for</span> <span class="n">feature</span> <span class="ow">in</span> <span class="n">numerical_cols</span><span class="p">:</span>
+                        <span class="c1"># 4.1 Run Granger causality test for this feature</span>
+                        <span class="n">granger_results</span> <span class="o">=</span> <span class="n">wrapped_granger_causality_test</span><span class="p">(</span>
+                            <span class="n">merged_df</span><span class="p">[</span><span class="n">price_column_name</span><span class="p">],</span>
+                            <span class="n">merged_df</span><span class="p">[</span><span class="n">feature</span><span class="p">],</span>
+                            <span class="n">max_lag</span>
+                        <span class="p">)</span>
+                        
+                        <span class="c1"># 4.2 Check if any lag meets selection criteria</span>
+                        <span class="k">for</span> <span class="n">result</span> <span class="ow">in</span> <span class="n">granger_results</span><span class="p">:</span>
+                            <span class="k">if</span> <span class="p">(</span><span class="n">result</span><span class="p">[</span><span class="s1">&#39;Lag&#39;</span><span class="p">]</span> <span class="o">&gt;=</span> <span class="n">min_lag</span> <span class="ow">and</span>
+                                <span class="n">result</span><span class="p">[</span><span class="s1">&#39;p-value&#39;</span><span class="p">]</span> <span class="o">&lt;</span> <span class="n">alpha</span> <span class="ow">and</span>
+                                <span class="n">result</span><span class="p">[</span><span class="s1">&#39;F-Statistic&#39;</span><span class="p">]</span> <span class="o">&gt;</span> <span class="n">f_threshold</span><span class="p">):</span>
+                                <span class="c1"># 4.3 Add the feature and its missing value indicator</span>
+                                <span class="n">selected_features</span><span class="p">[</span><span class="n">df_name</span><span class="p">]</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">feature</span><span class="p">)</span>
+                                <span class="n">selected_features</span><span class="p">[</span><span class="n">df_name</span><span class="p">]</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">feature</span><span class="si">}</span><span class="s2">_was_nan&quot;</span><span class="p">)</span>
+                                <span class="k">break</span>  <span class="c1"># Stop checking lags once feature is selected</span>
+            <span class="k">except</span><span class="p">:</span>
+                <span class="c1"># 5. ERROR HANDLING</span>
+                <span class="c1"># 5.1 Default to only including Date column if processing fails</span>
+                <span class="n">selected_features</span><span class="p">[</span><span class="n">df_name</span><span class="p">]</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;Date&#39;</span><span class="p">]</span>  <span class="c1"># At minimum, keep Date</span>
+        
+        <span class="c1"># 6. DEFAULT FEATURE INCLUSION</span>
+        <span class="c1"># 6.1 Add standard columns based on data frequency</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">monthly_data</span><span class="p">:</span>
+            <span class="c1"># Always include Date and Price in futures features</span>
+            <span class="n">selected_features</span><span class="p">[</span><span class="s1">&#39;futures&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;Date&#39;</span><span class="p">,</span> <span class="s1">&#39;Price&#39;</span><span class="p">]</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">selected_features</span><span class="p">[</span><span class="s1">&#39;futures&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;Price_mean&#39;</span><span class="p">,</span> <span class="s1">&#39;Price_median&#39;</span><span class="p">,</span> <span class="s1">&#39;Price_min&#39;</span><span class="p">,</span> <span class="s1">&#39;Price_max&#39;</span><span class="p">]</span>
+        
+        <span class="c1"># 7. FINAL OUTPUT PREPARATION</span>
+        <span class="c1"># 7.1 Initialize empty set to store unique column names</span>
+        <span class="n">all_features</span> <span class="o">=</span> <span class="nb">set</span><span class="p">()</span>
+        
+        <span class="c1"># 7.2 Collect unique features across all dataframes</span>
+        <span class="k">for</span> <span class="n">features_list</span> <span class="ow">in</span> <span class="n">selected_features</span><span class="o">.</span><span class="n">values</span><span class="p">():</span>
+            <span class="c1"># Add each feature to the set (deduplication)</span>
+            <span class="n">all_features</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">features_list</span><span class="p">)</span>
+
+    <span class="c1"># 8. RETURN UNIQUE FEATURES LIST</span>
+    <span class="k">return</span> <span class="nb">list</span><span class="p">(</span><span class="n">all_features</span><span class="p">)</span></div>
+
+</pre></div>
+
+            <div class="clearer"></div>
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<search id="searchbox" style="display: none" role="search">
+  <h3 id="searchlabel">Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="../search.html" method="get">
+      <input type="text" name="q" aria-labelledby="searchlabel" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"/>
+      <input type="submit" value="Go" />
+    </form>
+    </div>
+</search>
+<script>document.getElementById('searchbox').style.display = "block"</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../index.html">CoffeeGPT 1.5.4 documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="index.html" >Module code</a> &#187;</li>
+        <li class="nav-item nav-item-this"><a href="">feature_selection</a></li> 
+      </ul>
+    </div>
+    <div class="footer" role="contentinfo">
+    &#169; Copyright 2025, John Hohman.
+      Created using <a href="https://www.sphinx-doc.org/">Sphinx</a> 7.3.7.
+    </div>
+  </body>
+</html>

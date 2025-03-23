@@ -1,0 +1,16 @@
+.vscode/
+
+# Ignore plots folder
+plots/
+
+# Ignore logs folder
+logs/
+
+# Ignore experiments folder
+experiments/
+
+# Ignore Python cache directories
+__pycache__/
+
+# Ignore datasets folder
+datasets/

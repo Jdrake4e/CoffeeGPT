@@ -1,0 +1,822 @@
+<!DOCTYPE html>
+
+<html lang="en" data-content_root="../">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>utility_functions &#8212; CoffeeGPT 1.5.4 documentation</title>
+    <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=a746c00c" />
+    <link rel="stylesheet" type="text/css" href="../_static/nature.css?v=0f882399" />
+    <link rel="stylesheet" type="text/css" href="../_static/custom.css" />
+    <script src="../_static/documentation_options.js?v=1cd648e3"></script>
+    <script src="../_static/doctools.js?v=9a2dae69"></script>
+    <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" /> 
+  </head><body>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../index.html">CoffeeGPT 1.5.4 documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="index.html" accesskey="U">Module code</a> &#187;</li>
+        <li class="nav-item nav-item-this"><a href="">utility_functions</a></li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <h1>Source code for utility_functions</h1><div class="highlight"><pre>
+<span></span><span class="kn">import</span> <span class="nn">pycountry</span>
+<span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
+<span class="kn">import</span> <span class="nn">pandas</span> <span class="k">as</span> <span class="nn">pd</span> <span class="c1"># type: ignore</span>
+
+<span class="c1"># Many identifier had no Official ISO 3 codes, so made many temp ones based off the temp ones found in many un files</span>
+<span class="n">iso3_mapping</span> <span class="o">=</span> <span class="p">{</span>
+    <span class="s2">&quot;Advanced Economies&quot;</span><span class="p">:</span> <span class="s2">&quot;AETMP&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;Advanced Economies excluding US&quot;</span><span class="p">:</span> <span class="s2">&quot;EAEUSTMP&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;Africa&quot;</span><span class="p">:</span> <span class="s2">&quot;AFRTMP&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;Americas&quot;</span><span class="p">:</span> <span class="s2">&quot;AMETMP&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;Asia&quot;</span><span class="p">:</span> <span class="s2">&quot;ASIATMP&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;Emerging and Developing Countries Asia excluding China&quot;</span><span class="p">:</span> <span class="s2">&quot;EMDEAECHTMP&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;Emerging and Developing Countries Europe&quot;</span><span class="p">:</span> <span class="s2">&quot;EMDEETMP&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;Emerging and Developing Economies&quot;</span><span class="p">:</span> <span class="s2">&quot;EMDETMP&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;Europe&quot;</span><span class="p">:</span> <span class="s2">&quot;EURTMP&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;Latin America and the Caribbean&quot;</span><span class="p">:</span> <span class="s2">&quot;LACTMP&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;Middle East and Central Asia&quot;</span><span class="p">:</span> <span class="s2">&quot;MECATMP&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;Oceania&quot;</span><span class="p">:</span> <span class="s2">&quot;OCETMP&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;Sub-Saharan Africa&quot;</span><span class="p">:</span> <span class="s2">&quot;SSA&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;Bolivia (Plurinational State of)&quot;</span><span class="p">:</span><span class="s2">&quot;BOL&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;Caribbean&quot;</span><span class="p">:</span><span class="s2">&quot;CARTMP&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;Central America&quot;</span><span class="p">:</span><span class="s2">&quot;CAMTMP&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;China, mainland&quot;</span><span class="p">:</span><span class="s2">&quot;CHNML&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;Other non-specified areas&quot;</span><span class="p">:</span><span class="s2">&quot;ONSATMP&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;Democratic Republic of the Congo&quot;</span><span class="p">:</span><span class="s2">&quot;COD&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;Eastern Africa&quot;</span><span class="p">:</span><span class="s2">&quot;EAFTMP&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;Eastern Asia&quot;</span><span class="p">:</span><span class="s2">&quot;EASTMP&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;Ethiopia PDR&quot;</span><span class="p">:</span><span class="s2">&quot;ETHPDR&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;European Union (27)&quot;</span><span class="p">:</span><span class="s2">&quot;EUE&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;Land Locked Developing Countries&quot;</span><span class="p">:</span><span class="s2">&quot;LLDCTMP&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;Least Developed Countries&quot;</span><span class="p">:</span><span class="s2">&quot;LDCTMP&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;Low Income Food Deficit Countries&quot;</span><span class="p">:</span><span class="s2">&quot;LIFDC&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;Melanesia&quot;</span><span class="p">:</span><span class="s2">&quot;MLAS&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;Middle Africa&quot;</span><span class="p">:</span><span class="s2">&quot;MIDAFR&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;Net Food Importing Developing Countries&quot;</span><span class="p">:</span><span class="s2">&quot;NFIDCTMP&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;Northern America&quot;</span><span class="p">:</span><span class="s2">&quot;NAMTMP&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;Small Island Developing States&quot;</span> <span class="p">:</span> <span class="s2">&quot;SIDSTMP&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;South America&quot;</span><span class="p">:</span><span class="s2">&quot;SAMTMP&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;South-eastern Asia&quot;</span><span class="p">:</span><span class="s2">&quot;SEATMP&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;Southern Asia&quot;</span><span class="p">:</span><span class="s2">&quot;SATMP&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;Southern Europe&quot;</span><span class="p">:</span><span class="s2">&quot;SETMP&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;Venezuela (Bolivarian Republic of)&quot;</span><span class="p">:</span><span class="s2">&quot;VEN&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;Western Africa&quot;</span><span class="p">:</span><span class="s2">&quot;WAFTMP&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;Western Asia&quot;</span><span class="p">:</span><span class="s2">&quot;WASTMP&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;World&quot;</span><span class="p">:</span> <span class="s2">&quot;WLD&quot;</span>
+<span class="p">}</span>
+
+<span class="c1"># Function to convert country name to ISO 3 code</span>
+<div class="viewcode-block" id="country_name_to_iso3">
+<a class="viewcode-back" href="../api_reference.html#utility_functions.country_name_to_iso3">[docs]</a>
+<span class="k">def</span> <span class="nf">country_name_to_iso3</span><span class="p">(</span><span class="n">country_name</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Convert a country or region name to its ISO 3166-1 alpha-3 code or custom temporary code.</span>
+
+<span class="sd">    This function handles both standard country names and special regional/economic</span>
+<span class="sd">    groupings that don&#39;t have official ISO codes. It uses a custom mapping for</span>
+<span class="sd">    non-standard entities and falls back to fuzzy matching for standard country names.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    country_name : str</span>
+<span class="sd">        The name of the country or region to convert.</span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    str or None</span>
+<span class="sd">        The three-letter ISO code (for countries) or custom temporary code (for regions).</span>
+<span class="sd">        Returns None if no matching code is found.</span>
+
+<span class="sd">    Notes</span>
+<span class="sd">    -----</span>
+<span class="sd">    Design Decisions:</span>
+<span class="sd">    1. Custom Mapping:</span>
+<span class="sd">       - Uses temporary codes (XXXXTMP) for non-standard entities</span>
+<span class="sd">       - Based on common UN file conventions for regional groupings</span>
+<span class="sd">       - Preserves official ISO codes where they exist (e.g., &quot;BOL&quot; for Bolivia)</span>
+<span class="sd">    </span>
+<span class="sd">    2. Fallback Strategy:</span>
+<span class="sd">       - Primary lookup in custom iso3_mapping dictionary</span>
+<span class="sd">       - Secondary fuzzy search using pycountry for standard countries</span>
+<span class="sd">       - Returns None instead of raising exceptions for unmatched names</span>
+<span class="sd">    </span>
+<span class="sd">    3. Code Structure:</span>
+<span class="sd">       - Three-letter codes for consistency with ISO 3166-1</span>
+<span class="sd">       - TMP suffix indicates non-standard/temporary codes</span>
+<span class="sd">       - Regional codes follow logical abbreviation patterns</span>
+
+<span class="sd">    Examples</span>
+<span class="sd">    --------</span>
+<span class="sd">    &gt;&gt;&gt; # Standard country</span>
+<span class="sd">    &gt;&gt;&gt; country_name_to_iso3(&quot;France&quot;)</span>
+<span class="sd">    &#39;FRA&#39;</span>
+<span class="sd">    &gt;&gt;&gt; # Regional grouping</span>
+<span class="sd">    &gt;&gt;&gt; country_name_to_iso3(&quot;Advanced Economies&quot;)</span>
+<span class="sd">    &#39;AETMP&#39;</span>
+<span class="sd">    &gt;&gt;&gt; # Non-existent country</span>
+<span class="sd">    &gt;&gt;&gt; country_name_to_iso3(&quot;NonExistentLand&quot;)</span>
+<span class="sd">    None</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="c1"># Check if country name exists in ISO3 mapping</span>
+    <span class="k">if</span> <span class="n">country_name</span> <span class="ow">in</span> <span class="n">iso3_mapping</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">iso3_mapping</span><span class="p">[</span><span class="n">country_name</span><span class="p">]</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="c1"># Use fuzzy search to find ISO3 code</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">country</span> <span class="o">=</span> <span class="n">pycountry</span><span class="o">.</span><span class="n">countries</span><span class="o">.</span><span class="n">search_fuzzy</span><span class="p">(</span><span class="n">country_name</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span>
+            <span class="n">iso3_code</span> <span class="o">=</span> <span class="n">country</span><span class="o">.</span><span class="n">alpha_3</span>
+            <span class="k">return</span> <span class="n">iso3_code</span>
+        <span class="k">except</span> <span class="ne">LookupError</span><span class="p">:</span>
+            <span class="k">return</span> <span class="kc">None</span></div>
+
+
+<div class="viewcode-block" id="transform_futures_data">
+<a class="viewcode-back" href="../api_reference.html#utility_functions.transform_futures_data">[docs]</a>
+<span class="k">def</span> <span class="nf">transform_futures_data</span><span class="p">(</span><span class="n">dataframes_dict</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Transform futures data to include comprehensive monthly statistics and indicators.</span>
+
+<span class="sd">    This function processes raw futures data to create a rich set of monthly</span>
+<span class="sd">    statistics and technical indicators. It handles data aggregation, volatility</span>
+<span class="sd">    calculation, and various price-based metrics while ensuring proper date handling.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    dataframes_dict : dict</span>
+<span class="sd">        Dictionary containing dataframes, must include a &#39;futures&#39; key with</span>
+<span class="sd">        corresponding DataFrame containing columns: Date, High, Low, Price,</span>
+<span class="sd">        Open, Vol., Change %.</span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    dict</span>
+<span class="sd">        Updated dictionary with transformed futures data, where the &#39;futures&#39;</span>
+<span class="sd">        DataFrame now contains monthly statistics including:</span>
+<span class="sd">        - High_max, Low_min : Highest high and lowest low for the month</span>
+<span class="sd">        - Price_mean, Price_median, Price_min, Price_max : Price statistics</span>
+<span class="sd">        - Open_mean, Vol._mean, Change %_mean : Averaged values</span>
+<span class="sd">        - Price_pct_change : Month-over-month price change percentage</span>
+<span class="sd">        - Price_volatility : Standard deviation of daily returns</span>
+<span class="sd">        - Price_range_pct : Monthly price range as percentage of mean</span>
+
+<span class="sd">    Notes</span>
+<span class="sd">    -----</span>
+<span class="sd">    Design Decisions:</span>
+<span class="sd">    1. Date Handling:</span>
+<span class="sd">       - Converts all dates to datetime format for consistency</span>
+<span class="sd">       - Sets dates to first of month for proper alignment</span>
+<span class="sd">       - Maintains chronological order in output</span>
+<span class="sd">    </span>
+<span class="sd">    2. Statistical Calculations:</span>
+<span class="sd">       - Uses multiple price points (High, Low, Open) for comprehensive analysis</span>
+<span class="sd">       - Calculates both simple statistics and derived metrics</span>
+<span class="sd">       - Preserves original data while adding new insights</span>
+<span class="sd">    </span>
+<span class="sd">    3. Performance Considerations:</span>
+<span class="sd">       - Creates copy of input dictionary to prevent modification</span>
+<span class="sd">       - Uses efficient pandas operations for calculations</span>
+<span class="sd">       - Groups operations to minimize data traversal</span>
+<span class="sd">    </span>
+<span class="sd">    4. Data Quality:</span>
+<span class="sd">       - Handles missing values implicitly through aggregation</span>
+<span class="sd">       - Maintains data types throughout transformation</span>
+<span class="sd">       - Ensures consistent column naming</span>
+
+<span class="sd">    Examples</span>
+<span class="sd">    --------</span>
+<span class="sd">    &gt;&gt;&gt; import pandas as pd</span>
+<span class="sd">    &gt;&gt;&gt; # Create sample futures data</span>
+<span class="sd">    &gt;&gt;&gt; futures_df = pd.DataFrame({</span>
+<span class="sd">    ...     &#39;Date&#39;: [&#39;2023-01-01&#39;, &#39;2023-01-02&#39;],</span>
+<span class="sd">    ...     &#39;High&#39;: [105, 106],</span>
+<span class="sd">    ...     &#39;Low&#39;: [98, 99],</span>
+<span class="sd">    ...     &#39;Price&#39;: [100, 101],</span>
+<span class="sd">    ...     &#39;Open&#39;: [99, 100],</span>
+<span class="sd">    ...     &#39;Vol.&#39;: [1000, 1100],</span>
+<span class="sd">    ...     &#39;Change %&#39;: [1.0, 1.1]</span>
+<span class="sd">    ... })</span>
+<span class="sd">    &gt;&gt;&gt; data_dict = {&#39;futures&#39;: futures_df}</span>
+<span class="sd">    &gt;&gt;&gt; transformed = transform_futures_data(data_dict)</span>
+<span class="sd">    &gt;&gt;&gt; print(transformed[&#39;futures&#39;].columns)</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="c1"># Create a copy of the original dataframes dictionary</span>
+    <span class="n">transformed_dict</span> <span class="o">=</span> <span class="n">dataframes_dict</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+    
+    <span class="c1"># Get the futures dataframe</span>
+    <span class="n">futures</span> <span class="o">=</span> <span class="n">transformed_dict</span><span class="p">[</span><span class="s1">&#39;futures&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+    
+    <span class="c1"># Ensure &#39;Date&#39; is in datetime format</span>
+    <span class="n">futures</span><span class="p">[</span><span class="s1">&#39;Date&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">to_datetime</span><span class="p">(</span><span class="n">futures</span><span class="p">[</span><span class="s1">&#39;Date&#39;</span><span class="p">])</span>
+    
+    <span class="c1"># Extract month and year from the &#39;Date&#39; column</span>
+    <span class="n">futures</span><span class="p">[</span><span class="s1">&#39;Month-Year&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">futures</span><span class="p">[</span><span class="s1">&#39;Date&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">dt</span><span class="o">.</span><span class="n">to_period</span><span class="p">(</span><span class="s1">&#39;M&#39;</span><span class="p">)</span>
+    <span class="n">futures</span><span class="p">[</span><span class="s1">&#39;Year&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">futures</span><span class="p">[</span><span class="s1">&#39;Date&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">dt</span><span class="o">.</span><span class="n">year</span>
+    <span class="n">futures</span><span class="p">[</span><span class="s1">&#39;Month&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">futures</span><span class="p">[</span><span class="s1">&#39;Date&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">dt</span><span class="o">.</span><span class="n">month</span>
+    
+    <span class="c1"># Calculate monthly statistics</span>
+    <span class="n">monthly_stats</span> <span class="o">=</span> <span class="n">futures</span><span class="o">.</span><span class="n">groupby</span><span class="p">(</span><span class="s1">&#39;Month-Year&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">agg</span><span class="p">({</span>
+        <span class="s1">&#39;High&#39;</span><span class="p">:</span> <span class="s1">&#39;max&#39;</span><span class="p">,</span>
+        <span class="s1">&#39;Low&#39;</span><span class="p">:</span> <span class="s1">&#39;min&#39;</span><span class="p">,</span>
+        <span class="s1">&#39;Price&#39;</span><span class="p">:</span> <span class="p">[</span><span class="s1">&#39;mean&#39;</span><span class="p">,</span> <span class="s1">&#39;median&#39;</span><span class="p">,</span> <span class="s1">&#39;min&#39;</span><span class="p">,</span> <span class="s1">&#39;max&#39;</span><span class="p">],</span>
+        <span class="s1">&#39;Open&#39;</span><span class="p">:</span> <span class="s1">&#39;mean&#39;</span><span class="p">,</span>
+        <span class="s1">&#39;Vol.&#39;</span><span class="p">:</span> <span class="s1">&#39;mean&#39;</span><span class="p">,</span>
+        <span class="s1">&#39;Change %&#39;</span><span class="p">:</span> <span class="s1">&#39;mean&#39;</span>
+    <span class="p">})</span>
+    
+    <span class="c1"># Flatten the multi-level columns</span>
+    <span class="n">monthly_stats</span><span class="o">.</span><span class="n">columns</span> <span class="o">=</span> <span class="p">[</span>
+        <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">col</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="si">}</span><span class="s2">_</span><span class="si">{</span><span class="n">col</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="si">}</span><span class="s2">&quot;</span> <span class="k">if</span> <span class="n">col</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">!=</span> <span class="s1">&#39;&#39;</span> <span class="k">else</span> <span class="n">col</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> 
+        <span class="k">for</span> <span class="n">col</span> <span class="ow">in</span> <span class="n">monthly_stats</span><span class="o">.</span><span class="n">columns</span>
+    <span class="p">]</span>
+    
+    <span class="c1"># Calculate percent changes</span>
+    <span class="n">monthly_stats</span><span class="p">[</span><span class="s1">&#39;Price_pct_change&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">monthly_stats</span><span class="p">[</span><span class="s1">&#39;Price_mean&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">pct_change</span><span class="p">()</span> <span class="o">*</span> <span class="mi">100</span>
+    
+    <span class="c1"># Convert Month-Year period to datetime for the first day of each month</span>
+    <span class="n">monthly_stats</span> <span class="o">=</span> <span class="n">monthly_stats</span><span class="o">.</span><span class="n">reset_index</span><span class="p">()</span>
+    <span class="n">monthly_stats</span><span class="p">[</span><span class="s1">&#39;Date&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">monthly_stats</span><span class="p">[</span><span class="s1">&#39;Month-Year&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">apply</span><span class="p">(</span><span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="n">x</span><span class="o">.</span><span class="n">to_timestamp</span><span class="p">(</span><span class="n">how</span><span class="o">=</span><span class="s1">&#39;start&#39;</span><span class="p">))</span>
+    
+    <span class="c1"># Drop the Month-Year column as we now have Date</span>
+    <span class="n">monthly_stats</span> <span class="o">=</span> <span class="n">monthly_stats</span><span class="o">.</span><span class="n">drop</span><span class="p">(</span><span class="s1">&#39;Month-Year&#39;</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+    
+    <span class="c1"># Add monthly volatility (standard deviation of daily returns within each month)</span>
+    <span class="n">volatility</span> <span class="o">=</span> <span class="n">futures</span><span class="o">.</span><span class="n">groupby</span><span class="p">(</span><span class="n">pd</span><span class="o">.</span><span class="n">Grouper</span><span class="p">(</span><span class="n">key</span><span class="o">=</span><span class="s1">&#39;Date&#39;</span><span class="p">,</span> <span class="n">freq</span><span class="o">=</span><span class="s1">&#39;MS&#39;</span><span class="p">))[</span><span class="s1">&#39;Price&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">std</span><span class="p">()</span>
+    <span class="n">monthly_stats</span><span class="p">[</span><span class="s1">&#39;Price_volatility&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">volatility</span><span class="o">.</span><span class="n">values</span>
+    
+    <span class="c1"># Calculate price range as percentage of mean price</span>
+    <span class="n">monthly_stats</span><span class="p">[</span><span class="s1">&#39;Price_range_pct&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="p">(</span>
+        <span class="p">(</span><span class="n">monthly_stats</span><span class="p">[</span><span class="s1">&#39;Price_max&#39;</span><span class="p">]</span> <span class="o">-</span> <span class="n">monthly_stats</span><span class="p">[</span><span class="s1">&#39;Price_min&#39;</span><span class="p">])</span> <span class="o">/</span> 
+        <span class="n">monthly_stats</span><span class="p">[</span><span class="s1">&#39;Price_mean&#39;</span><span class="p">]</span> <span class="o">*</span> <span class="mi">100</span>
+    <span class="p">)</span>
+    
+    <span class="c1"># Sort by date</span>
+    <span class="n">monthly_stats</span> <span class="o">=</span> <span class="n">monthly_stats</span><span class="o">.</span><span class="n">sort_values</span><span class="p">(</span><span class="s1">&#39;Date&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">reset_index</span><span class="p">(</span><span class="n">drop</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+    
+    <span class="c1"># Update the futures dataframe in the dictionary</span>
+    <span class="n">transformed_dict</span><span class="p">[</span><span class="s1">&#39;futures&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">monthly_stats</span>
+    
+    <span class="k">return</span> <span class="n">transformed_dict</span></div>
+
+
+<div class="viewcode-block" id="fix_column_order">
+<a class="viewcode-back" href="../api_reference.html#utility_functions.fix_column_order">[docs]</a>
+<span class="k">def</span> <span class="nf">fix_column_order</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="n">monthly_data</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">track_nans</span><span class="o">=</span><span class="kc">True</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Standardize column order in time series DataFrames with &#39;Date&#39; first and &#39;Price&#39; last.</span>
+
+<span class="sd">    This function ensures a consistent column order across time series DataFrames,</span>
+<span class="sd">    placing the &#39;Date&#39; column first and the price-related column last. It handles</span>
+<span class="sd">    both daily and monthly data formats, with special handling for monthly price</span>
+<span class="sd">    column naming and optional NaN tracking columns.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    data : pandas.DataFrame</span>
+<span class="sd">        Input DataFrame containing time series data with &#39;Date&#39; and price columns.</span>
+<span class="sd">    monthly_data : bool, default=False</span>
+<span class="sd">        If True, handles monthly data where &#39;Price_mean&#39; might be used instead of &#39;Price&#39;.</span>
+<span class="sd">    track_nans : bool, default=True</span>
+<span class="sd">        If True, preserves _was_nan columns next to their corresponding feature columns.</span>
+<span class="sd">        If False, removes all _was_nan columns.</span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    pandas.DataFrame</span>
+<span class="sd">        DataFrame with standardized column order: [&#39;Date&#39;, ..., &#39;Price&#39;].</span>
+<span class="sd">        If track_nans=True, _was_nan columns will be placed immediately after their</span>
+<span class="sd">        corresponding feature columns.</span>
+
+<span class="sd">    Notes</span>
+<span class="sd">    -----</span>
+<span class="sd">    Design Decisions:</span>
+<span class="sd">    1. Column Ordering:</span>
+<span class="sd">       - &#39;Date&#39; column always comes first for temporal reference</span>
+<span class="sd">       - Feature columns in the middle maintain their relative order</span>
+<span class="sd">       - Price column always comes last for consistency</span>
+<span class="sd">       - NaN indicator columns are placed immediately after their features</span>
+<span class="sd">    </span>
+<span class="sd">    2. Price Column Handling:</span>
+<span class="sd">       - For daily data: Uses &#39;Price&#39; column name</span>
+<span class="sd">       - For monthly data: Converts &#39;Price_mean&#39; to &#39;Price&#39; if present</span>
+<span class="sd">       - Maintains original column if no renaming is needed</span>
+<span class="sd">    </span>
+<span class="sd">    3. Data Preservation:</span>
+<span class="sd">       - Creates a copy to avoid modifying the input DataFrame</span>
+<span class="sd">       - Preserves all original data, only changes column order</span>
+<span class="sd">       - Maintains data types of all columns</span>
+<span class="sd">    </span>
+<span class="sd">    4. NaN Tracking:</span>
+<span class="sd">       - When track_nans=True, preserves _was_nan columns next to their features</span>
+<span class="sd">       - When track_nans=False, removes all _was_nan columns</span>
+<span class="sd">       - Maintains feature-NaN indicator pairs when tracking is enabled</span>
+
+<span class="sd">    Examples</span>
+<span class="sd">    --------</span>
+<span class="sd">    &gt;&gt;&gt; # Daily data example with NaN tracking</span>
+<span class="sd">    &gt;&gt;&gt; df_daily = pd.DataFrame({</span>
+<span class="sd">    ...     &#39;Feature1&#39;: [1, 2],</span>
+<span class="sd">    ...     &#39;Feature1_was_nan&#39;: [0, 1],</span>
+<span class="sd">    ...     &#39;Date&#39;: [&#39;2023-01-01&#39;, &#39;2023-01-02&#39;],</span>
+<span class="sd">    ...     &#39;Price&#39;: [100, 101]</span>
+<span class="sd">    ... })</span>
+<span class="sd">    &gt;&gt;&gt; result = fix_column_order(df_daily)</span>
+<span class="sd">    &gt;&gt;&gt; print(result.columns.tolist())</span>
+<span class="sd">    [&#39;Date&#39;, &#39;Feature1&#39;, &#39;Feature1_was_nan&#39;, &#39;Price&#39;]</span>
+
+<span class="sd">    &gt;&gt;&gt; # Monthly data example without NaN tracking</span>
+<span class="sd">    &gt;&gt;&gt; df_monthly = pd.DataFrame({</span>
+<span class="sd">    ...     &#39;Feature1&#39;: [1, 2],</span>
+<span class="sd">    ...     &#39;Feature1_was_nan&#39;: [0, 1],</span>
+<span class="sd">    ...     &#39;Date&#39;: [&#39;2023-01-01&#39;, &#39;2023-02-01&#39;],</span>
+<span class="sd">    ...     &#39;Price_mean&#39;: [100, 101]</span>
+<span class="sd">    ... })</span>
+<span class="sd">    &gt;&gt;&gt; result = fix_column_order(df_monthly, monthly_data=True, track_nans=False)</span>
+<span class="sd">    &gt;&gt;&gt; print(result.columns.tolist())</span>
+<span class="sd">    [&#39;Date&#39;, &#39;Feature1&#39;, &#39;Price&#39;]</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="c1"># Create a copy to avoid modifying the original</span>
+    <span class="n">df</span> <span class="o">=</span> <span class="n">data</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+    
+    <span class="c1"># If monthly data, rename Price_mean to Price if it exists</span>
+    <span class="k">if</span> <span class="n">monthly_data</span> <span class="ow">and</span> <span class="s1">&#39;Price_mean&#39;</span> <span class="ow">in</span> <span class="n">df</span><span class="o">.</span><span class="n">columns</span><span class="p">:</span>
+        <span class="n">df</span> <span class="o">=</span> <span class="n">df</span><span class="o">.</span><span class="n">rename</span><span class="p">(</span><span class="n">columns</span><span class="o">=</span><span class="p">{</span><span class="s1">&#39;Price_mean&#39;</span><span class="p">:</span> <span class="s1">&#39;Price&#39;</span><span class="p">})</span>
+    
+    <span class="c1"># Get proper price column name</span>
+    <span class="n">price_col</span> <span class="o">=</span> <span class="s1">&#39;Price&#39;</span>
+    
+    <span class="c1"># Handle NaN tracking columns</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">track_nans</span><span class="p">:</span>
+        <span class="c1"># Remove all _was_nan columns</span>
+        <span class="n">df</span> <span class="o">=</span> <span class="n">df</span><span class="o">.</span><span class="n">loc</span><span class="p">[:,</span> <span class="o">~</span><span class="n">df</span><span class="o">.</span><span class="n">columns</span><span class="o">.</span><span class="n">str</span><span class="o">.</span><span class="n">endswith</span><span class="p">(</span><span class="s1">&#39;_was_nan&#39;</span><span class="p">)]</span>
+    
+    <span class="c1"># Get all columns except Date and Price</span>
+    <span class="n">middle_columns</span> <span class="o">=</span> <span class="p">[</span><span class="n">col</span> <span class="k">for</span> <span class="n">col</span> <span class="ow">in</span> <span class="n">df</span><span class="o">.</span><span class="n">columns</span> <span class="k">if</span> <span class="n">col</span> <span class="ow">not</span> <span class="ow">in</span> <span class="p">[</span><span class="s1">&#39;Date&#39;</span><span class="p">,</span> <span class="n">price_col</span><span class="p">]]</span>
+    
+    <span class="c1"># If tracking NaNs, reorder middle columns to keep NaN indicators next to their features</span>
+    <span class="k">if</span> <span class="n">track_nans</span><span class="p">:</span>
+        <span class="c1"># Group columns by their base name (without _was_nan suffix)</span>
+        <span class="n">column_groups</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="k">for</span> <span class="n">col</span> <span class="ow">in</span> <span class="n">middle_columns</span><span class="p">:</span>
+            <span class="n">base_name</span> <span class="o">=</span> <span class="n">col</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s1">&#39;_was_nan&#39;</span><span class="p">,</span> <span class="s1">&#39;&#39;</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">base_name</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">column_groups</span><span class="p">:</span>
+                <span class="n">column_groups</span><span class="p">[</span><span class="n">base_name</span><span class="p">]</span> <span class="o">=</span> <span class="p">[]</span>
+            <span class="n">column_groups</span><span class="p">[</span><span class="n">base_name</span><span class="p">]</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">col</span><span class="p">)</span>
+        
+        <span class="c1"># Reorder middle columns to keep NaN indicators next to their features</span>
+        <span class="n">reordered_middle</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">base_name</span><span class="p">,</span> <span class="n">cols</span> <span class="ow">in</span> <span class="n">column_groups</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+            <span class="c1"># Add the feature column first</span>
+            <span class="n">reordered_middle</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">base_name</span><span class="p">)</span>
+            <span class="c1"># Add its NaN indicator if it exists</span>
+            <span class="n">nan_col</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">base_name</span><span class="si">}</span><span class="s2">_was_nan&quot;</span>
+            <span class="k">if</span> <span class="n">nan_col</span> <span class="ow">in</span> <span class="n">cols</span><span class="p">:</span>
+                <span class="n">reordered_middle</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">nan_col</span><span class="p">)</span>
+        
+        <span class="n">middle_columns</span> <span class="o">=</span> <span class="n">reordered_middle</span>
+    
+    <span class="c1"># Create new column order with Date first and Price last</span>
+    <span class="n">new_order</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;Date&#39;</span><span class="p">]</span> <span class="o">+</span> <span class="n">middle_columns</span> <span class="o">+</span> <span class="p">[</span><span class="n">price_col</span><span class="p">]</span>
+    
+    <span class="c1"># Reorder the columns</span>
+    <span class="n">df</span> <span class="o">=</span> <span class="n">df</span><span class="p">[</span><span class="n">new_order</span><span class="p">]</span>
+    
+    <span class="k">return</span> <span class="n">df</span></div>
+
+
+
+<span class="c1"># TODO fix BUG with monthly</span>
+<div class="viewcode-block" id="concat_all_data">
+<a class="viewcode-back" href="../api_reference.html#utility_functions.concat_all_data">[docs]</a>
+<span class="k">def</span> <span class="nf">concat_all_data</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="n">is_monthly</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">track_nans</span><span class="o">=</span><span class="kc">True</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Concatenate and align multiple time series DataFrames with consistent frequency.</span>
+
+<span class="sd">    This function combines multiple time series DataFrames while handling frequency</span>
+<span class="sd">    conversion, missing values, and temporal alignment. It supports both daily and</span>
+<span class="sd">    monthly data frequencies and includes optional NaN indicators for tracking missing data.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    data : dict</span>
+<span class="sd">        Dictionary of DataFrames to concatenate. Must include a &#39;futures&#39; key with</span>
+<span class="sd">        its corresponding DataFrame. Each DataFrame must have a &#39;Date&#39; column.</span>
+<span class="sd">    is_monthly : bool, default=False</span>
+<span class="sd">        If True, treats and resamples data as monthly frequency (MS = Month Start).</span>
+<span class="sd">        If False, treats and resamples data as daily frequency.</span>
+<span class="sd">    track_nans : bool, default=True</span>
+<span class="sd">        If True, creates indicator columns for NaN values in the original data.</span>
+<span class="sd">        If False, only forward fills missing values without tracking.</span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    pandas.DataFrame</span>
+<span class="sd">        A concatenated DataFrame containing all features from input DataFrames with:</span>
+<span class="sd">        - Consistent date frequency (daily or monthly)</span>
+<span class="sd">        - Optional NaN indicators for missing values (if track_nans=True)</span>
+<span class="sd">        - Forward-filled missing data</span>
+<span class="sd">        - Deduplicated column names</span>
+<span class="sd">        - Chronologically sorted rows</span>
+
+<span class="sd">    Notes</span>
+<span class="sd">    -----</span>
+<span class="sd">    Design Decisions:</span>
+<span class="sd">    1. Date Handling:</span>
+<span class="sd">       - Uses futures data date range as reference</span>
+<span class="sd">       - Converts all dates to datetime format</span>
+<span class="sd">       - Sets monthly dates to first of month when applicable</span>
+<span class="sd">       - Creates consistent date index across all data</span>
+<span class="sd">    </span>
+<span class="sd">    2. Missing Data Strategy:</span>
+<span class="sd">       - Optional creation of indicator columns for original NaN values</span>
+<span class="sd">       - Forward fills missing values for continuity</span>
+<span class="sd">       - Handles both temporal and feature-wise missing data</span>
+<span class="sd">       - Preserves information about data availability when track_nans=True</span>
+<span class="sd">    </span>
+<span class="sd">    3. Data Alignment:</span>
+<span class="sd">       - Uses futures data as anchor for date range</span>
+<span class="sd">       - Resamples all other data to match frequency</span>
+<span class="sd">       - Handles overlapping and non-overlapping periods</span>
+<span class="sd">       - Maintains temporal ordering</span>
+<span class="sd">    </span>
+<span class="sd">    4. Column Management:</span>
+<span class="sd">       - Adds suffixes to resolve duplicate column names</span>
+<span class="sd">       - Preserves original column names where possible</span>
+<span class="sd">       - Creates intuitive names for NaN indicators when track_nans=True</span>
+<span class="sd">       - Ensures unique column identifiers</span>
+
+<span class="sd">    Warnings</span>
+<span class="sd">    --------</span>
+<span class="sd">    - Forward filling may create artificial continuity</span>
+<span class="sd">    - When track_nans=False, information about original missing values is lost</span>
+
+<span class="sd">    See Also</span>
+<span class="sd">    --------</span>
+<span class="sd">    transform_futures_data : Function for preprocessing futures data</span>
+<span class="sd">    fix_column_order : Function for standardizing column order</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="c1"># First, handle futures data to establish index</span>
+    <span class="n">futures_df</span> <span class="o">=</span> <span class="n">data</span><span class="p">[</span><span class="s1">&#39;futures&#39;</span><span class="p">]</span>
+    <span class="n">futures_df</span><span class="p">[</span><span class="s1">&#39;Date&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">to_datetime</span><span class="p">(</span><span class="n">futures_df</span><span class="p">[</span><span class="s1">&#39;Date&#39;</span><span class="p">])</span>
+    <span class="n">max_date</span> <span class="o">=</span> <span class="n">futures_df</span><span class="p">[</span><span class="s1">&#39;Date&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">max</span><span class="p">()</span>
+    
+    <span class="c1"># Set appropriate frequency based on is_monthly</span>
+    <span class="n">freq</span> <span class="o">=</span> <span class="s1">&#39;MS&#39;</span> <span class="k">if</span> <span class="n">is_monthly</span> <span class="k">else</span> <span class="s1">&#39;D&#39;</span>  <span class="c1"># MS = Month Start</span>
+    
+    <span class="c1"># Create index range</span>
+    <span class="n">main_index</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">date_range</span><span class="p">(</span>
+        <span class="n">start</span><span class="o">=</span><span class="n">futures_df</span><span class="p">[</span><span class="s1">&#39;Date&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">min</span><span class="p">(),</span>
+        <span class="n">end</span><span class="o">=</span><span class="n">max_date</span><span class="p">,</span>
+        <span class="n">freq</span><span class="o">=</span><span class="n">freq</span>
+    <span class="p">)</span>
+    
+    <span class="n">processed_dfs</span> <span class="o">=</span> <span class="p">{}</span>
+    <span class="k">for</span> <span class="n">name</span><span class="p">,</span> <span class="n">dafr</span> <span class="ow">in</span> <span class="n">data</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+        <span class="c1"># Make a copy to avoid modifying original</span>
+        <span class="n">df</span> <span class="o">=</span> <span class="n">dafr</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+        
+        <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Processing dataset: </span><span class="si">{</span><span class="n">name</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+        
+        <span class="c1"># Convert Date column to datetime if not already</span>
+        <span class="n">df</span><span class="p">[</span><span class="s1">&#39;Date&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">to_datetime</span><span class="p">(</span><span class="n">df</span><span class="p">[</span><span class="s1">&#39;Date&#39;</span><span class="p">])</span>
+        
+        <span class="c1"># If monthly data, ensure all dates are set to first of month</span>
+        <span class="k">if</span> <span class="n">is_monthly</span><span class="p">:</span>
+            <span class="n">df</span><span class="p">[</span><span class="s1">&#39;Date&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">df</span><span class="p">[</span><span class="s1">&#39;Date&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">apply</span><span class="p">(</span><span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="n">x</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="n">day</span><span class="o">=</span><span class="mi">1</span><span class="p">))</span>
+        
+        <span class="c1"># Handle NaN tracking based on parameter</span>
+        <span class="k">if</span> <span class="n">track_nans</span><span class="p">:</span>
+            <span class="c1"># Create indicator columns (1 if was NaN, 0 if wasn&#39;t)</span>
+            <span class="n">nan_indicators</span> <span class="o">=</span> <span class="n">df</span><span class="o">.</span><span class="n">isna</span><span class="p">()</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="nb">int</span><span class="p">)</span>
+            <span class="c1"># Rename the indicator columns to show they&#39;re NaN indicators</span>
+            <span class="n">nan_indicators</span> <span class="o">=</span> <span class="n">nan_indicators</span><span class="o">.</span><span class="n">add_suffix</span><span class="p">(</span><span class="s1">&#39;_was_nan&#39;</span><span class="p">)</span>
+            <span class="c1"># Fill the NaN values with 0 in original dataframe</span>
+            <span class="n">df</span> <span class="o">=</span> <span class="n">df</span><span class="o">.</span><span class="n">fillna</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>
+            <span class="c1"># Concatenate the original dataframe with the indicators</span>
+            <span class="n">df</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">concat</span><span class="p">([</span><span class="n">df</span><span class="p">,</span> <span class="n">nan_indicators</span><span class="p">],</span> <span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="c1"># Simply fill NaN values without tracking</span>
+            <span class="n">df</span> <span class="o">=</span> <span class="n">df</span><span class="o">.</span><span class="n">fillna</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>
+        
+        <span class="c1"># Remove any duplicate Date entries</span>
+        <span class="k">if</span> <span class="n">is_monthly</span><span class="p">:</span>
+            <span class="c1"># For monthly data, take the last value of each month</span>
+            <span class="n">df</span> <span class="o">=</span> <span class="n">df</span><span class="o">.</span><span class="n">sort_values</span><span class="p">(</span><span class="s1">&#39;Date&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">drop_duplicates</span><span class="p">(</span><span class="n">subset</span><span class="o">=</span><span class="p">[</span><span class="s1">&#39;Date&#39;</span><span class="p">],</span> <span class="n">keep</span><span class="o">=</span><span class="s1">&#39;last&#39;</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="c1"># For daily data, take the first occurrence</span>
+            <span class="n">df</span> <span class="o">=</span> <span class="n">df</span><span class="o">.</span><span class="n">drop_duplicates</span><span class="p">(</span><span class="n">subset</span><span class="o">=</span><span class="p">[</span><span class="s1">&#39;Date&#39;</span><span class="p">])</span>
+        
+        <span class="c1"># Set Date as index</span>
+        <span class="n">df</span><span class="o">.</span><span class="n">set_index</span><span class="p">(</span><span class="s1">&#39;Date&#39;</span><span class="p">,</span> <span class="n">inplace</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+        
+        <span class="c1"># If not futures data, resample and fill</span>
+        <span class="k">if</span> <span class="n">name</span> <span class="o">!=</span> <span class="s1">&#39;futures&#39;</span><span class="p">:</span>
+            <span class="c1"># Create extended index</span>
+            <span class="n">extended_index</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">date_range</span><span class="p">(</span>
+                <span class="n">start</span><span class="o">=</span><span class="n">df</span><span class="o">.</span><span class="n">index</span><span class="o">.</span><span class="n">min</span><span class="p">(),</span>
+                <span class="n">end</span><span class="o">=</span><span class="n">max_date</span><span class="p">,</span>
+                <span class="n">freq</span><span class="o">=</span><span class="n">freq</span>
+            <span class="p">)</span>
+            
+            <span class="c1"># Resample and forward fill</span>
+            <span class="k">if</span> <span class="n">is_monthly</span><span class="p">:</span>
+                <span class="c1"># For monthly data, resample to month start and forward fill</span>
+                <span class="n">df</span> <span class="o">=</span> <span class="n">df</span><span class="o">.</span><span class="n">reindex</span><span class="p">(</span><span class="n">extended_index</span><span class="p">)</span><span class="o">.</span><span class="n">fillna</span><span class="p">(</span><span class="n">method</span><span class="o">=</span><span class="s1">&#39;ffill&#39;</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="c1"># For daily data, forward fill as before</span>
+                <span class="n">df</span> <span class="o">=</span> <span class="n">df</span><span class="o">.</span><span class="n">reindex</span><span class="p">(</span><span class="n">extended_index</span><span class="p">)</span><span class="o">.</span><span class="n">fillna</span><span class="p">(</span><span class="n">method</span><span class="o">=</span><span class="s1">&#39;ffill&#39;</span><span class="p">)</span>
+            
+            <span class="c1"># Reindex to match the main index</span>
+            <span class="n">df</span> <span class="o">=</span> <span class="n">df</span><span class="o">.</span><span class="n">reindex</span><span class="p">(</span><span class="n">main_index</span><span class="p">)</span>
+        
+        <span class="n">processed_dfs</span><span class="p">[</span><span class="n">name</span><span class="p">]</span> <span class="o">=</span> <span class="n">df</span>
+    
+    <span class="c1"># Concatenate all dataframes horizontally</span>
+    <span class="n">final_df</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">concat</span><span class="p">(</span><span class="n">processed_dfs</span><span class="o">.</span><span class="n">values</span><span class="p">(),</span> <span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+    
+    <span class="c1"># Reset index to make Date a column</span>
+    <span class="n">final_df</span><span class="o">.</span><span class="n">reset_index</span><span class="p">(</span><span class="n">inplace</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+    <span class="n">final_df</span><span class="o">.</span><span class="n">rename</span><span class="p">(</span><span class="n">columns</span><span class="o">=</span><span class="p">{</span><span class="s1">&#39;index&#39;</span><span class="p">:</span> <span class="s1">&#39;Date&#39;</span><span class="p">},</span> <span class="n">inplace</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+    
+    <span class="c1"># Clean up column names to remove any duplicates</span>
+    <span class="n">duplicates</span> <span class="o">=</span> <span class="n">final_df</span><span class="o">.</span><span class="n">columns</span><span class="p">[</span><span class="n">final_df</span><span class="o">.</span><span class="n">columns</span><span class="o">.</span><span class="n">duplicated</span><span class="p">()]</span>
+    <span class="k">for</span> <span class="n">col</span> <span class="ow">in</span> <span class="n">duplicates</span><span class="p">:</span>
+        <span class="c1"># Find all columns with this name</span>
+        <span class="n">dupe_cols</span> <span class="o">=</span> <span class="n">final_df</span><span class="o">.</span><span class="n">columns</span><span class="o">.</span><span class="n">get_indexer_for</span><span class="p">(</span><span class="n">final_df</span><span class="o">.</span><span class="n">columns</span><span class="p">[</span><span class="n">final_df</span><span class="o">.</span><span class="n">columns</span> <span class="o">==</span> <span class="n">col</span><span class="p">])</span>
+        <span class="c1"># Rename them with a suffix</span>
+        <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">idx</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">dupe_cols</span><span class="p">[</span><span class="mi">1</span><span class="p">:],</span> <span class="mi">1</span><span class="p">):</span>
+            <span class="n">final_df</span><span class="o">.</span><span class="n">columns</span><span class="o">.</span><span class="n">values</span><span class="p">[</span><span class="n">idx</span><span class="p">]</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">col</span><span class="si">}</span><span class="s2">_</span><span class="si">{</span><span class="n">i</span><span class="si">}</span><span class="s2">&quot;</span>
+    
+    <span class="c1"># Sort by date</span>
+    <span class="n">final_df</span> <span class="o">=</span> <span class="n">final_df</span><span class="o">.</span><span class="n">sort_values</span><span class="p">(</span><span class="s1">&#39;Date&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">reset_index</span><span class="p">(</span><span class="n">drop</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+    
+    <span class="c1"># For monthly data, ensure all dates are first of month</span>
+    <span class="k">if</span> <span class="n">is_monthly</span><span class="p">:</span>
+        <span class="n">final_df</span><span class="p">[</span><span class="s1">&#39;Date&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">final_df</span><span class="p">[</span><span class="s1">&#39;Date&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">apply</span><span class="p">(</span><span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="n">x</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="n">day</span><span class="o">=</span><span class="mi">1</span><span class="p">))</span>
+    
+    <span class="k">return</span> <span class="n">final_df</span></div>
+
+
+<div class="viewcode-block" id="concat_all_data_yearly_old">
+<a class="viewcode-back" href="../api_reference.html#utility_functions.concat_all_data_yearly_old">[docs]</a>
+<span class="k">def</span> <span class="nf">concat_all_data_yearly_old</span><span class="p">(</span><span class="n">data</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Concatenate multiple time series DataFrames with daily frequency (deprecated).</span>
+
+<span class="sd">    .. deprecated:: 1.0.0</span>
+<span class="sd">        This function is deprecated and will be removed in version 2.0.0.</span>
+<span class="sd">        Use :func:`concat_all_data` with is_monthly=False instead.</span>
+
+<span class="sd">    This function processes multiple time series DataFrames, converting them to</span>
+<span class="sd">    daily frequency and concatenating them horizontally. It handles missing values,</span>
+<span class="sd">    date alignment, and column name conflicts.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    data : dict</span>
+<span class="sd">        Dictionary of DataFrames where keys are dataset names and values are</span>
+<span class="sd">        the corresponding DataFrames. Each DataFrame must have a &#39;Date&#39; column.</span>
+<span class="sd">        The dictionary must contain a &#39;futures&#39; key with its associated DataFrame.</span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    pandas.DataFrame</span>
+<span class="sd">        A concatenated DataFrame containing all features from input DataFrames with:</span>
+<span class="sd">        - Daily frequency</span>
+<span class="sd">        - NaN indicators for missing values</span>
+<span class="sd">        - Forward-filled missing data</span>
+<span class="sd">        - Deduplicated column names</span>
+<span class="sd">        - Chronologically sorted rows</span>
+
+<span class="sd">    Notes</span>
+<span class="sd">    -----</span>
+<span class="sd">    Design Decisions:</span>
+<span class="sd">    1. Date Processing:</span>
+<span class="sd">       - Uses futures data date range as reference</span>
+<span class="sd">       - Converts all dates to datetime format</span>
+<span class="sd">       - Creates daily frequency index for all data</span>
+<span class="sd">       - Maintains temporal ordering</span>
+<span class="sd">    </span>
+<span class="sd">    2. Missing Data Handling:</span>
+<span class="sd">       - Creates indicator columns for original NaN values</span>
+<span class="sd">       - Forward fills missing values for continuity</span>
+<span class="sd">       - Preserves information about data availability</span>
+<span class="sd">    </span>
+<span class="sd">    3. Data Alignment:</span>
+<span class="sd">       - Uses futures data as anchor for date range</span>
+<span class="sd">       - Resamples all other data to daily frequency</span>
+<span class="sd">       - Handles overlapping and non-overlapping periods</span>
+<span class="sd">    </span>
+<span class="sd">    4. Column Management:</span>
+<span class="sd">       - Adds suffixes to resolve duplicate column names</span>
+<span class="sd">       - Preserves original column names where possible</span>
+<span class="sd">       - Creates intuitive names for NaN indicators</span>
+
+<span class="sd">    Warnings</span>
+<span class="sd">    --------</span>
+<span class="sd">    - This function is deprecated and will be removed in version 2.0.0</span>
+<span class="sd">    - Forward filling may create artificial continuity</span>
+
+<span class="sd">    See Also</span>
+<span class="sd">    --------</span>
+<span class="sd">    concat_all_data : Newer function that handles both daily and monthly data</span>
+
+<span class="sd">    Examples</span>
+<span class="sd">    --------</span>
+<span class="sd">    &gt;&gt;&gt; import pandas as pd</span>
+<span class="sd">    &gt;&gt;&gt; # Create sample data</span>
+<span class="sd">    &gt;&gt;&gt; futures_df = pd.DataFrame({</span>
+<span class="sd">    ...     &#39;Date&#39;: [&#39;2023-01-01&#39;, &#39;2023-01-02&#39;],</span>
+<span class="sd">    ...     &#39;Price&#39;: [100, 101]</span>
+<span class="sd">    ... })</span>
+<span class="sd">    &gt;&gt;&gt; other_df = pd.DataFrame({</span>
+<span class="sd">    ...     &#39;Date&#39;: [&#39;2023-01-01&#39;],</span>
+<span class="sd">    ...     &#39;Feature&#39;: [1.0]</span>
+<span class="sd">    ... })</span>
+<span class="sd">    &gt;&gt;&gt; data_dict = {&#39;futures&#39;: futures_df, &#39;other&#39;: other_df}</span>
+<span class="sd">    &gt;&gt;&gt; result = concat_all_data_yearly_old(data_dict)</span>
+<span class="sd">    &gt;&gt;&gt; print(result.columns)</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="c1"># First, handle futures data to establish daily index</span>
+    <span class="n">futures_df</span> <span class="o">=</span> <span class="n">data</span><span class="p">[</span><span class="s1">&#39;futures&#39;</span><span class="p">]</span>
+    <span class="n">futures_df</span><span class="p">[</span><span class="s1">&#39;Date&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">to_datetime</span><span class="p">(</span><span class="n">futures_df</span><span class="p">[</span><span class="s1">&#39;Date&#39;</span><span class="p">])</span>
+    <span class="n">max_date</span> <span class="o">=</span> <span class="n">futures_df</span><span class="p">[</span><span class="s1">&#39;Date&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">max</span><span class="p">()</span>
+    <span class="n">daily_index</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">date_range</span><span class="p">(</span>
+        <span class="n">start</span><span class="o">=</span><span class="n">futures_df</span><span class="p">[</span><span class="s1">&#39;Date&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">min</span><span class="p">(),</span>
+        <span class="n">end</span><span class="o">=</span><span class="n">max_date</span><span class="p">,</span>
+        <span class="n">freq</span><span class="o">=</span><span class="s1">&#39;D&#39;</span>
+    <span class="p">)</span>
+
+    <span class="n">processed_dfs</span> <span class="o">=</span> <span class="p">{}</span>
+
+    <span class="k">for</span> <span class="n">name</span><span class="p">,</span> <span class="n">dafr</span> <span class="ow">in</span> <span class="n">data</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+        <span class="c1"># Make a copy to avoid modifying original</span>
+        <span class="n">df</span> <span class="o">=</span> <span class="n">dafr</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+        
+        <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Processing dataset: </span><span class="si">{</span><span class="n">name</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+        
+        <span class="c1"># Convert Date column to datetime if not already</span>
+        <span class="n">df</span><span class="p">[</span><span class="s1">&#39;Date&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">to_datetime</span><span class="p">(</span><span class="n">df</span><span class="p">[</span><span class="s1">&#39;Date&#39;</span><span class="p">])</span>
+        
+        <span class="c1"># Create indicator columns (1 if was NaN, 0 if wasn&#39;t)</span>
+        <span class="n">nan_indicators</span> <span class="o">=</span> <span class="n">df</span><span class="o">.</span><span class="n">isna</span><span class="p">()</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="nb">int</span><span class="p">)</span>
+        <span class="c1"># Rename the indicator columns to show they&#39;re NaN indicators</span>
+        <span class="n">nan_indicators</span> <span class="o">=</span> <span class="n">nan_indicators</span><span class="o">.</span><span class="n">add_suffix</span><span class="p">(</span><span class="s1">&#39;_was_nan&#39;</span><span class="p">)</span>
+        <span class="c1"># Fill the NaN values with 0 in original dataframe</span>
+        <span class="n">df</span> <span class="o">=</span> <span class="n">df</span><span class="o">.</span><span class="n">fillna</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>
+        <span class="c1"># Concatenate the original dataframe with the indicators</span>
+        <span class="n">df</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">concat</span><span class="p">([</span><span class="n">df</span><span class="p">,</span> <span class="n">nan_indicators</span><span class="p">],</span> <span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+
+        <span class="c1"># Remove any duplicate Date entries by taking the first occurrence</span>
+        <span class="n">df</span> <span class="o">=</span> <span class="n">df</span><span class="o">.</span><span class="n">drop_duplicates</span><span class="p">(</span><span class="n">subset</span><span class="o">=</span><span class="p">[</span><span class="s1">&#39;Date&#39;</span><span class="p">])</span>
+
+        <span class="c1"># Set Date as index</span>
+        <span class="n">df</span><span class="o">.</span><span class="n">set_index</span><span class="p">(</span><span class="s1">&#39;Date&#39;</span><span class="p">,</span> <span class="n">inplace</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+
+        <span class="c1"># If not futures data, resample to daily frequency and forward fill to max_date</span>
+        <span class="k">if</span> <span class="n">name</span> <span class="o">!=</span> <span class="s1">&#39;futures&#39;</span><span class="p">:</span>
+            <span class="c1"># Create a new index that extends to max_date</span>
+            <span class="n">extended_index</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">date_range</span><span class="p">(</span>
+                <span class="n">start</span><span class="o">=</span><span class="n">df</span><span class="o">.</span><span class="n">index</span><span class="o">.</span><span class="n">min</span><span class="p">(),</span>
+                <span class="n">end</span><span class="o">=</span><span class="n">max_date</span><span class="p">,</span>
+                <span class="n">freq</span><span class="o">=</span><span class="s1">&#39;D&#39;</span>
+            <span class="p">)</span>
+            <span class="c1"># Reindex and forward fill</span>
+            <span class="n">df</span> <span class="o">=</span> <span class="n">df</span><span class="o">.</span><span class="n">reindex</span><span class="p">(</span><span class="n">extended_index</span><span class="p">)</span><span class="o">.</span><span class="n">fillna</span><span class="p">(</span><span class="n">method</span><span class="o">=</span><span class="s1">&#39;ffill&#39;</span><span class="p">)</span>
+            <span class="c1"># Then reindex to match the futures daily index (in case the data starts later)</span>
+            <span class="n">df</span> <span class="o">=</span> <span class="n">df</span><span class="o">.</span><span class="n">reindex</span><span class="p">(</span><span class="n">daily_index</span><span class="p">)</span>
+
+        <span class="n">processed_dfs</span><span class="p">[</span><span class="n">name</span><span class="p">]</span> <span class="o">=</span> <span class="n">df</span>
+
+    <span class="c1"># Concatenate all dataframes horizontally</span>
+    <span class="n">final_df</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">concat</span><span class="p">(</span><span class="n">processed_dfs</span><span class="o">.</span><span class="n">values</span><span class="p">(),</span> <span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+
+    <span class="c1"># Reset index to make Date a column and ensure no duplicates</span>
+    <span class="n">final_df</span><span class="o">.</span><span class="n">reset_index</span><span class="p">(</span><span class="n">inplace</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+    <span class="n">final_df</span><span class="o">.</span><span class="n">rename</span><span class="p">(</span><span class="n">columns</span><span class="o">=</span><span class="p">{</span><span class="s1">&#39;index&#39;</span><span class="p">:</span> <span class="s1">&#39;Date&#39;</span><span class="p">},</span> <span class="n">inplace</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+
+    <span class="c1"># Clean up column names to remove any duplicates</span>
+    <span class="c1"># Get a list of duplicate columns</span>
+    <span class="n">duplicates</span> <span class="o">=</span> <span class="n">final_df</span><span class="o">.</span><span class="n">columns</span><span class="p">[</span><span class="n">final_df</span><span class="o">.</span><span class="n">columns</span><span class="o">.</span><span class="n">duplicated</span><span class="p">()]</span>
+    <span class="k">for</span> <span class="n">col</span> <span class="ow">in</span> <span class="n">duplicates</span><span class="p">:</span>
+        <span class="c1"># Find all columns with this name</span>
+        <span class="n">dupe_cols</span> <span class="o">=</span> <span class="n">final_df</span><span class="o">.</span><span class="n">columns</span><span class="o">.</span><span class="n">get_indexer_for</span><span class="p">(</span><span class="n">final_df</span><span class="o">.</span><span class="n">columns</span><span class="p">[</span><span class="n">final_df</span><span class="o">.</span><span class="n">columns</span> <span class="o">==</span> <span class="n">col</span><span class="p">])</span>
+        <span class="c1"># Rename them with a suffix</span>
+        <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">idx</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">dupe_cols</span><span class="p">[</span><span class="mi">1</span><span class="p">:],</span> <span class="mi">1</span><span class="p">):</span>
+            <span class="n">final_df</span><span class="o">.</span><span class="n">columns</span><span class="o">.</span><span class="n">values</span><span class="p">[</span><span class="n">idx</span><span class="p">]</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">col</span><span class="si">}</span><span class="s2">_</span><span class="si">{</span><span class="n">i</span><span class="si">}</span><span class="s2">&quot;</span>
+
+    <span class="c1"># Sort by date</span>
+    <span class="n">final_df</span> <span class="o">=</span> <span class="n">final_df</span><span class="o">.</span><span class="n">sort_values</span><span class="p">(</span><span class="s1">&#39;Date&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">reset_index</span><span class="p">(</span><span class="n">drop</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+
+    <span class="k">return</span> <span class="n">final_df</span></div>
+
+
+<div class="viewcode-block" id="convert_to_serializable">
+<a class="viewcode-back" href="../api_reference.html#utility_functions.convert_to_serializable">[docs]</a>
+<span class="k">def</span> <span class="nf">convert_to_serializable</span><span class="p">(</span><span class="n">obj</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Convert NumPy types to Python native types for JSON serialization.</span>
+<span class="sd">    </span>
+<span class="sd">    This function recursively converts NumPy data types to their Python native </span>
+<span class="sd">    equivalents to make them JSON serializable. It handles integers, floats, </span>
+<span class="sd">    arrays, and nested structures like dictionaries and lists.</span>
+<span class="sd">    </span>
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    obj : any</span>
+<span class="sd">        The object to convert, which may contain NumPy data types.</span>
+<span class="sd">    </span>
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    any</span>
+<span class="sd">        The converted object with all NumPy types replaced with Python native types.</span>
+<span class="sd">    </span>
+<span class="sd">    Notes</span>
+<span class="sd">    -----</span>
+<span class="sd">    Handles the following NumPy types:</span>
+<span class="sd">    - Integer types (int8, int16, int32, int64, etc.) → Python int</span>
+<span class="sd">    - Float types (float16, float32, float64) → Python float</span>
+<span class="sd">    - NumPy arrays → Python lists</span>
+<span class="sd">    - Nested dictionaries and lists are processed recursively</span>
+<span class="sd">    </span>
+<span class="sd">    Examples</span>
+<span class="sd">    --------</span>
+<span class="sd">    &gt;&gt;&gt; import numpy as np</span>
+<span class="sd">    &gt;&gt;&gt; data = {&#39;value&#39;: np.int64(42), &#39;array&#39;: np.array([1, 2, 3])}</span>
+<span class="sd">    &gt;&gt;&gt; serializable_data = convert_to_serializable(data)</span>
+<span class="sd">    &gt;&gt;&gt; import json</span>
+<span class="sd">    &gt;&gt;&gt; json.dumps(serializable_data)  # This will succeed</span>
+<span class="sd">    &#39;{&quot;value&quot;: 42, &quot;array&quot;: [1, 2, 3]}&#39;</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">obj</span><span class="p">,</span> <span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">int_</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">intc</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">intp</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">int8</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">int16</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">int32</span><span class="p">,</span>
+                        <span class="n">np</span><span class="o">.</span><span class="n">int64</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">uint8</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">uint16</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">uint32</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">uint64</span><span class="p">)):</span>
+        <span class="k">return</span> <span class="nb">int</span><span class="p">(</span><span class="n">obj</span><span class="p">)</span>
+    <span class="k">elif</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">obj</span><span class="p">,</span> <span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">float_</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">float16</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">float32</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">float64</span><span class="p">)):</span>
+        <span class="k">return</span> <span class="nb">float</span><span class="p">(</span><span class="n">obj</span><span class="p">)</span>
+    <span class="k">elif</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">obj</span><span class="p">,</span> <span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,)):</span>
+        <span class="k">return</span> <span class="n">obj</span><span class="o">.</span><span class="n">tolist</span><span class="p">()</span>
+    <span class="k">elif</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">obj</span><span class="p">,</span> <span class="nb">dict</span><span class="p">):</span>
+        <span class="k">return</span> <span class="p">{</span><span class="n">key</span><span class="p">:</span> <span class="n">convert_to_serializable</span><span class="p">(</span><span class="n">value</span><span class="p">)</span> <span class="k">for</span> <span class="n">key</span><span class="p">,</span> <span class="n">value</span> <span class="ow">in</span> <span class="n">obj</span><span class="o">.</span><span class="n">items</span><span class="p">()}</span>
+    <span class="k">elif</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">obj</span><span class="p">,</span> <span class="nb">list</span><span class="p">):</span>
+        <span class="k">return</span> <span class="p">[</span><span class="n">convert_to_serializable</span><span class="p">(</span><span class="n">item</span><span class="p">)</span> <span class="k">for</span> <span class="n">item</span> <span class="ow">in</span> <span class="n">obj</span><span class="p">]</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">obj</span></div>
+
+</pre></div>
+
+            <div class="clearer"></div>
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<search id="searchbox" style="display: none" role="search">
+  <h3 id="searchlabel">Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="../search.html" method="get">
+      <input type="text" name="q" aria-labelledby="searchlabel" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"/>
+      <input type="submit" value="Go" />
+    </form>
+    </div>
+</search>
+<script>document.getElementById('searchbox').style.display = "block"</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../index.html">CoffeeGPT 1.5.4 documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="index.html" >Module code</a> &#187;</li>
+        <li class="nav-item nav-item-this"><a href="">utility_functions</a></li> 
+      </ul>
+    </div>
+    <div class="footer" role="contentinfo">
+    &#169; Copyright 2025, John Hohman.
+      Created using <a href="https://www.sphinx-doc.org/">Sphinx</a> 7.3.7.
+    </div>
+  </body>
+</html>

@@ -1,0 +1,10 @@
+# Set the default behavior to automatically normalize line endings
+* text=auto
+
+# Explicitly set line endings for specific file types
+*.py text eol=lf
+*.css text eol=lf
+*.js text eol=lf
+*.ipynb text eol=lf
+*.drawio text eol=lf
+Makefile text eol=lf

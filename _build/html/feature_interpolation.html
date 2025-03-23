@@ -1,0 +1,352 @@
+<!DOCTYPE html>
+
+<html lang="en" data-content_root="./">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="generator" content="Docutils 0.18.1: http://docutils.sourceforge.net/" />
+
+    <title>Feature Interpolation &#8212; CoffeeGPT 1.5.4 documentation</title>
+    <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=a746c00c" />
+    <link rel="stylesheet" type="text/css" href="_static/nature.css?v=0f882399" />
+    <link rel="stylesheet" type="text/css" href="_static/custom.css" />
+    <script src="_static/documentation_options.js?v=1cd648e3"></script>
+    <script src="_static/doctools.js?v=9a2dae69"></script>
+    <script src="_static/sphinx_highlight.js?v=dc90522c"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" /> 
+  </head><body>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="nav-item nav-item-0"><a href="index.html">CoffeeGPT 1.5.4 documentation</a> &#187;</li>
+        <li class="nav-item nav-item-this"><a href="">Feature Interpolation</a></li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <section id="module-feature_interpolation">
+<span id="feature-interpolation"></span><h1>Feature Interpolation<a class="headerlink" href="#module-feature_interpolation" title="Link to this heading">¶</a></h1>
+<dl class="py class">
+<dt class="sig sig-object py" id="feature_interpolation.interpolators">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">feature_interpolation.</span></span><span class="sig-name descname"><span class="pre">interpolators</span></span><a class="reference internal" href="_modules/feature_interpolation.html#interpolators"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#feature_interpolation.interpolators" title="Link to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></p>
+<p>A class for handling interpolation of different types of time series data.</p>
+<p>This class provides specialized interpolation methods for various data types,
+including demographics, human development indices, forex rates, forest data,
+green coffee production, land cover, and energy data.</p>
+<dl class="py method">
+<dt class="sig sig-object py" id="feature_interpolation.interpolators.demographics_interpolator">
+<span class="sig-name descname"><span class="pre">demographics_interpolator</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">features</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/feature_interpolation.html#interpolators.demographics_interpolator"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#feature_interpolation.interpolators.demographics_interpolator" title="Link to this definition">¶</a></dt>
+<dd><p>Interpolate demographic time series data.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="feature_interpolation.interpolators.hdi_interpolator">
+<span class="sig-name descname"><span class="pre">hdi_interpolator</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">features</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/feature_interpolation.html#interpolators.hdi_interpolator"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#feature_interpolation.interpolators.hdi_interpolator" title="Link to this definition">¶</a></dt>
+<dd><p>Interpolate human development index data.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="feature_interpolation.interpolators.forex_interpolator">
+<span class="sig-name descname"><span class="pre">forex_interpolator</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">features</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/feature_interpolation.html#interpolators.forex_interpolator"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#feature_interpolation.interpolators.forex_interpolator" title="Link to this definition">¶</a></dt>
+<dd><p>Interpolate foreign exchange rate data.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="feature_interpolation.interpolators.forest_data_interpolator">
+<span class="sig-name descname"><span class="pre">forest_data_interpolator</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">features</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/feature_interpolation.html#interpolators.forest_data_interpolator"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#feature_interpolation.interpolators.forest_data_interpolator" title="Link to this definition">¶</a></dt>
+<dd><p>Interpolate forest and carbon data.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="feature_interpolation.interpolators.green_coffee_interpolator">
+<span class="sig-name descname"><span class="pre">green_coffee_interpolator</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">features</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/feature_interpolation.html#interpolators.green_coffee_interpolator"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#feature_interpolation.interpolators.green_coffee_interpolator" title="Link to this definition">¶</a></dt>
+<dd><p>Interpolate green coffee production data.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="feature_interpolation.interpolators.land_cover_interpolator">
+<span class="sig-name descname"><span class="pre">land_cover_interpolator</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">features</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/feature_interpolation.html#interpolators.land_cover_interpolator"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#feature_interpolation.interpolators.land_cover_interpolator" title="Link to this definition">¶</a></dt>
+<dd><p>Interpolate land cover statistics.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="feature_interpolation.interpolators.energy_interpolator">
+<span class="sig-name descname"><span class="pre">energy_interpolator</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">features</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/feature_interpolation.html#interpolators.energy_interpolator"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#feature_interpolation.interpolators.energy_interpolator" title="Link to this definition">¶</a></dt>
+<dd><p>Interpolate energy consumption and production data.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="feature_interpolation.interpolators.disaster_interpolator">
+<span class="sig-name descname"><span class="pre">disaster_interpolator</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">features</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/feature_interpolation.html#interpolators.disaster_interpolator"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#feature_interpolation.interpolators.disaster_interpolator" title="Link to this definition">¶</a></dt>
+<dd><p>Interpolate climate-related disaster data.</p>
+</dd></dl>
+
+<p class="rubric">Notes</p>
+<p>Design Decisions:
+1. Method Organization:</p>
+<blockquote>
+<div><ul class="simple">
+<li><p>Each data type has a dedicated interpolator method</p></li>
+<li><p>Methods are designed to handle specific data characteristics</p></li>
+<li><p>Consistent interface across all interpolators</p></li>
+</ul>
+</div></blockquote>
+<ol class="arabic simple" start="2">
+<li><p>Data Handling:
+- Each method expects a features DataFrame as input
+- Methods preserve data types and column names
+- Special handling for missing values and outliers</p></li>
+<li><p>Implementation:
+- Methods are placeholders for future implementation
+- Will support various interpolation techniques
+- Designed for extensibility and customization</p></li>
+</ol>
+<p class="rubric">Examples</p>
+<div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="c1"># Create interpolator instance</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">interp</span> <span class="o">=</span> <span class="n">interpolators</span><span class="p">()</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="c1"># Interpolate demographic data</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">interpolated_demographics</span> <span class="o">=</span> <span class="n">interp</span><span class="o">.</span><span class="n">demographics_interpolator</span><span class="p">(</span><span class="n">features_df</span><span class="p">)</span>
+</pre></div>
+</div>
+<dl class="py method">
+<dt class="sig sig-object py" id="id0">
+<span class="sig-name descname"><span class="pre">demographics_interpolator</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">features</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/feature_interpolation.html#interpolators.demographics_interpolator"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#id0" title="Link to this definition">¶</a></dt>
+<dd><p>Interpolate demographic time series data.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>features</strong> (<em>pandas.DataFrame</em>) – DataFrame containing demographic time series data.</p>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>Interpolated demographic data.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>pandas.DataFrame</p>
+</dd>
+</dl>
+<p class="rubric">Notes</p>
+<p>Currently a placeholder for implementation.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="id1">
+<span class="sig-name descname"><span class="pre">disaster_interpolator</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">features</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/feature_interpolation.html#interpolators.disaster_interpolator"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#id1" title="Link to this definition">¶</a></dt>
+<dd><p>Interpolate climate-related disaster data.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>features</strong> (<em>pandas.DataFrame</em>) – DataFrame containing disaster time series data.</p>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>Interpolated disaster data.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>pandas.DataFrame</p>
+</dd>
+</dl>
+<p class="rubric">Notes</p>
+<p>Currently a placeholder for implementation.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="id2">
+<span class="sig-name descname"><span class="pre">energy_interpolator</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">features</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/feature_interpolation.html#interpolators.energy_interpolator"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#id2" title="Link to this definition">¶</a></dt>
+<dd><p>Interpolate energy consumption and production data.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>features</strong> (<em>pandas.DataFrame</em>) – DataFrame containing energy time series data.</p>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>Interpolated energy data.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>pandas.DataFrame</p>
+</dd>
+</dl>
+<p class="rubric">Notes</p>
+<p>Currently a placeholder for implementation.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="id3">
+<span class="sig-name descname"><span class="pre">forest_data_interpolator</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">features</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/feature_interpolation.html#interpolators.forest_data_interpolator"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#id3" title="Link to this definition">¶</a></dt>
+<dd><p>Interpolate forest and carbon data.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>features</strong> (<em>pandas.DataFrame</em>) – DataFrame containing forest and carbon time series data.</p>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>Interpolated forest and carbon data.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>pandas.DataFrame</p>
+</dd>
+</dl>
+<p class="rubric">Notes</p>
+<p>Currently a placeholder for implementation.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="id4">
+<span class="sig-name descname"><span class="pre">forex_interpolator</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">features</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/feature_interpolation.html#interpolators.forex_interpolator"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#id4" title="Link to this definition">¶</a></dt>
+<dd><p>Interpolate foreign exchange rate data.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>features</strong> (<em>pandas.DataFrame</em>) – DataFrame containing forex time series data.</p>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>Interpolated forex data.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>pandas.DataFrame</p>
+</dd>
+</dl>
+<p class="rubric">Notes</p>
+<p>Currently a placeholder for implementation.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="id5">
+<span class="sig-name descname"><span class="pre">green_coffee_interpolator</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">features</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/feature_interpolation.html#interpolators.green_coffee_interpolator"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#id5" title="Link to this definition">¶</a></dt>
+<dd><p>Interpolate green coffee production data.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>features</strong> (<em>pandas.DataFrame</em>) – DataFrame containing green coffee production time series data.</p>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>Interpolated green coffee production data.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>pandas.DataFrame</p>
+</dd>
+</dl>
+<p class="rubric">Notes</p>
+<p>Currently a placeholder for implementation.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="id6">
+<span class="sig-name descname"><span class="pre">hdi_interpolator</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">features</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/feature_interpolation.html#interpolators.hdi_interpolator"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#id6" title="Link to this definition">¶</a></dt>
+<dd><p>Interpolate human development index data.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>features</strong> (<em>pandas.DataFrame</em>) – DataFrame containing HDI time series data.</p>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>Interpolated HDI data.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>pandas.DataFrame</p>
+</dd>
+</dl>
+<p class="rubric">Notes</p>
+<p>Currently a placeholder for implementation.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="id7">
+<span class="sig-name descname"><span class="pre">land_cover_interpolator</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">features</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/feature_interpolation.html#interpolators.land_cover_interpolator"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#id7" title="Link to this definition">¶</a></dt>
+<dd><p>Interpolate land cover statistics.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>features</strong> (<em>pandas.DataFrame</em>) – DataFrame containing land cover time series data.</p>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>Interpolated land cover data.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>pandas.DataFrame</p>
+</dd>
+</dl>
+<p class="rubric">Notes</p>
+<p>Currently a placeholder for implementation.</p>
+</dd></dl>
+
+</dd></dl>
+
+</section>
+
+
+            <div class="clearer"></div>
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+  <div>
+    <h3><a href="index.html">Table of Contents</a></h3>
+    <ul>
+<li><a class="reference internal" href="#">Feature Interpolation</a><ul>
+<li><a class="reference internal" href="#feature_interpolation.interpolators"><code class="docutils literal notranslate"><span class="pre">interpolators</span></code></a><ul>
+<li><a class="reference internal" href="#feature_interpolation.interpolators.demographics_interpolator"><code class="docutils literal notranslate"><span class="pre">interpolators.demographics_interpolator()</span></code></a></li>
+<li><a class="reference internal" href="#feature_interpolation.interpolators.hdi_interpolator"><code class="docutils literal notranslate"><span class="pre">interpolators.hdi_interpolator()</span></code></a></li>
+<li><a class="reference internal" href="#feature_interpolation.interpolators.forex_interpolator"><code class="docutils literal notranslate"><span class="pre">interpolators.forex_interpolator()</span></code></a></li>
+<li><a class="reference internal" href="#feature_interpolation.interpolators.forest_data_interpolator"><code class="docutils literal notranslate"><span class="pre">interpolators.forest_data_interpolator()</span></code></a></li>
+<li><a class="reference internal" href="#feature_interpolation.interpolators.green_coffee_interpolator"><code class="docutils literal notranslate"><span class="pre">interpolators.green_coffee_interpolator()</span></code></a></li>
+<li><a class="reference internal" href="#feature_interpolation.interpolators.land_cover_interpolator"><code class="docutils literal notranslate"><span class="pre">interpolators.land_cover_interpolator()</span></code></a></li>
+<li><a class="reference internal" href="#feature_interpolation.interpolators.energy_interpolator"><code class="docutils literal notranslate"><span class="pre">interpolators.energy_interpolator()</span></code></a></li>
+<li><a class="reference internal" href="#feature_interpolation.interpolators.disaster_interpolator"><code class="docutils literal notranslate"><span class="pre">interpolators.disaster_interpolator()</span></code></a></li>
+<li><a class="reference internal" href="#id0"><code class="docutils literal notranslate"><span class="pre">interpolators.demographics_interpolator()</span></code></a></li>
+<li><a class="reference internal" href="#id1"><code class="docutils literal notranslate"><span class="pre">interpolators.disaster_interpolator()</span></code></a></li>
+<li><a class="reference internal" href="#id2"><code class="docutils literal notranslate"><span class="pre">interpolators.energy_interpolator()</span></code></a></li>
+<li><a class="reference internal" href="#id3"><code class="docutils literal notranslate"><span class="pre">interpolators.forest_data_interpolator()</span></code></a></li>
+<li><a class="reference internal" href="#id4"><code class="docutils literal notranslate"><span class="pre">interpolators.forex_interpolator()</span></code></a></li>
+<li><a class="reference internal" href="#id5"><code class="docutils literal notranslate"><span class="pre">interpolators.green_coffee_interpolator()</span></code></a></li>
+<li><a class="reference internal" href="#id6"><code class="docutils literal notranslate"><span class="pre">interpolators.hdi_interpolator()</span></code></a></li>
+<li><a class="reference internal" href="#id7"><code class="docutils literal notranslate"><span class="pre">interpolators.land_cover_interpolator()</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+
+  </div>
+  <div role="note" aria-label="source link">
+    <h3>This Page</h3>
+    <ul class="this-page-menu">
+      <li><a href="_sources/feature_interpolation.rst.txt"
+            rel="nofollow">Show Source</a></li>
+    </ul>
+   </div>
+<search id="searchbox" style="display: none" role="search">
+  <h3 id="searchlabel">Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="search.html" method="get">
+      <input type="text" name="q" aria-labelledby="searchlabel" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"/>
+      <input type="submit" value="Go" />
+    </form>
+    </div>
+</search>
+<script>document.getElementById('searchbox').style.display = "block"</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="nav-item nav-item-0"><a href="index.html">CoffeeGPT 1.5.4 documentation</a> &#187;</li>
+        <li class="nav-item nav-item-this"><a href="">Feature Interpolation</a></li> 
+      </ul>
+    </div>
+    <div class="footer" role="contentinfo">
+    &#169; Copyright 2025, John Hohman.
+      Created using <a href="https://www.sphinx-doc.org/">Sphinx</a> 7.3.7.
+    </div>
+  </body>
+</html>
